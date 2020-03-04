@@ -1,0 +1,8 @@
+#recipe Blog
+
+// Customize your settings and add new ones here
+Settings[Keys.Host] = "host.com";
+Settings[BlogKeys.Title] = "Petar Marinov";
+Settings[BlogKeys.Description] = "/dev/shared";
+
+// Add any pipeline customizations here
