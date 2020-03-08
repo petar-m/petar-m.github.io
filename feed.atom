@@ -1,15 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-	<id>http://host.com/</id>
+	<id>http://pmarinov.xyz/</id>
 	<title>Petar Marinov</title>
-	<link rel="self" href="http://host.com/" />
+	<link rel="self" href="http://pmarinov.xyz/" />
 	<rights>2020</rights>
-	<updated>2020-03-08T16:35:07Z</updated>
+	<updated>2020-03-08T17:30:17Z</updated>
 	<subtitle>/dev/shared</subtitle>
 	<entry>
-		<id>http://host.com/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</id>
+		<id>http://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</id>
 		<title>Deleting large amounts of data from MS SQL Server database</title>
-		<link href="http://host.com/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database" />
+		<link href="http://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database" />
 		<updated>2020-02-27T00:00:00Z</updated>
 		<content>&lt;!--- # Deleting large amounts of data from MS SQL Server database ---&gt;
 &lt;p&gt;Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size.&lt;/p&gt;

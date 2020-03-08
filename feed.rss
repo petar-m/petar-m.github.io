@@ -2,16 +2,16 @@
 <rss xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
 	<channel>
 		<title>Petar Marinov</title>
-		<link>http://host.com/</link>
+		<link>http://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2020</copyright>
-		<pubDate>Sun, 08 Mar 2020 16:35:07 GMT</pubDate>
-		<lastBuildDate>Sun, 08 Mar 2020 16:35:07 GMT</lastBuildDate>
+		<pubDate>Sun, 08 Mar 2020 17:30:17 GMT</pubDate>
+		<lastBuildDate>Sun, 08 Mar 2020 17:30:17 GMT</lastBuildDate>
 		<item>
 			<title>Deleting large amounts of data from MS SQL Server database</title>
-			<link>http://host.com/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</link>
+			<link>http://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</link>
 			<description>&lt;p&gt;Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size.&lt;/p&gt;</description>
-			<guid>http://host.com/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</guid>
+			<guid>http://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</guid>
 			<pubDate>Thu, 27 Feb 2020 00:00:00 GMT</pubDate>
 			<content:encoded>&lt;!--- # Deleting large amounts of data from MS SQL Server database ---&gt;
 &lt;p&gt;Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size.&lt;/p&gt;
