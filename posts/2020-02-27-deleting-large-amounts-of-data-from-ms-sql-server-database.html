@@ -1,0 +1,326 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+
+        <title>Petar Marinov - Deleting large amounts of data from MS SQL Server database</title>
+        <meta name="description" content="/dev/shared" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">        
+
+        <link type="application/rss+xml" rel="alternate" title="Petar Marinov" href="/feed.rss" />
+                <link type="application/atom+xml" rel="alternate" title="Petar Marinov" href="/feed.atom" />
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+        <link href="/assets/css/bootstrap.min.css" rel="stylesheet" />
+        <link href="/assets/css/highlight.css" rel="stylesheet">
+        <link href="/assets/css/clean-blog.css" rel="stylesheet" />
+        <link href="/assets/css/master.css" rel="stylesheet" />
+        <link href="/assets/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+        <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+        <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+        <link href="/assets/css/override.css" rel="stylesheet" />
+
+
+        <meta name="application-name" content="Petar Marinov" />
+        <meta name="msapplication-tooltip" content="Petar Marinov" />
+        <meta name="msapplication-starturl" content="/" />
+
+        <meta property="og:title" content="Petar Marinov - Deleting large amounts of data from MS SQL Server database" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="http://host.com/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database" />
+        <!-- TODO: More social graph meta tags -->
+
+        
+
+
+        </head>
+        <body>
+                
+                <!-- Navigation -->
+                <nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+                        <div class="container-fluid">
+                                <!-- Brand and toggle get grouped for better mobile display -->
+                                <div class="navbar-header page-scroll">
+                                        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+                                        <span class="sr-only">Toggle navigation</span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        </button>
+                                        <a class="navbar-brand" href="/">Petar Marinov</a>
+                                </div>
+                        
+                                <!-- Collect the nav links, forms, and other content for toggling -->
+                                <div class="collapse navbar-collapse" id="navbar-collapse">
+                                        <ul class="nav navbar-nav navbar-right">
+                                                        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+ 
+                                        </ul>
+                                </div>
+                                <!-- /.navbar-collapse -->
+                        </div>
+                        <!-- /.container -->
+                </nav>
+                
+                <!-- Page Header -->
+                <header class="intro-header" id="intro-header">
+                        <div class="container">
+                                <div class="row">
+                                        <div class="col-md-12">
+
+    
+<div class="post-heading">
+    <h1>Deleting large amounts of data from MS SQL Server database</h1>
+    <div class="meta">        
+Published on 27 February 2020<br>    </div>
+        <div class="tags">
+                    <a role="button" href="/tags/PowerShell" class="btn btn-default btn-xs">PowerShell</a>
+                    <a role="button" href="/tags/SQL" class="btn btn-default btn-xs">SQL</a>
+        </div>     
+</div>
+                                        </div>
+                                </div>
+                        </div>
+                </header>
+                
+                <!-- Main Content -->
+                <div class="container">
+                        <div class="row">
+                                <div id="content" class="col-md-12">
+                                        
+
+<!--- # Deleting large amounts of data from MS SQL Server database --->
+<p>Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size.</p>
+<h2 id="background">Background</h2>
+<p>My problem was that in a multi-tenant database a tenant has grown too much - to the point that it had to be moved to it's own database. The plan was to restore a backup of the database and delete all other tenant's data. The database had around 150 tables - for most of them deletions were not a problem - but for around 20 of them more than 10 million rows were to be deleted and for particular 5 tables more than 600 million.</p>
+<h2 id="first-iteration-standard-deletions">First iteration: Standard deletions</h2>
+<p>For the first version of the deletion I used standard delete statements similar to:</p>
+<pre><code class="language-sql">DELETE x FROM a_table x JOIN &#64;TenantsToDelete t ON t.Id=x.TenantId; 
+</code></pre>
+<p>It worked fine on a small data set and was useful to confirm the deletion order and flush out some bad data and design oddities. Also it has no problem for few thousand to even tens of thousands of rows so it worked fine for the majority of the cases.<br />
+Where millions of rows were to be deleted it was taking long time and transaction log was growing rapidly. The full deletion script actually never ran to completion on production-grade data.</p>
+<h2 id="second-iteration-batched-deletions">Second iteration: Batched deletions</h2>
+<p>For the large tables I tried batched deletes similar to:</p>
+<pre><code class="language-sql">DECLARE &#64;batch_size INT=5000;
+delete_top:
+  DELETE TOP(&#64;batch_size) x FROM a_table x JOIN &#64;TenantsToDelete t ON t.Id=x.TenantId;
+  IF &#64;batch_size = &#64;&#64;ROWCOUNT GOTO delete_top;
+</code></pre>
+<p>This version of the script was able to complete deletion of a single small-sized tenant for around 30 minutes, for a large one it took more than 15 hours - and I needed to remove around 40 of them. It was still no good.</p>
+<h2 id="third-iteration-replace-delete-with-insert">Third iteration: Replace DELETE with INSERT</h2>
+<p>So <code>DELETE</code> is slow and there is no much room for improvement. There is no <em>&quot;bulk delete&quot;</em> kind of operation in MS SQL Server to boost the performance and I was not in a position to use <code>TRUNCATE</code> or <code>DROP TABLE</code> since I needed to preserve part of the data.</p>
+<p>While searching for solution I found this article about optimizing loading of data and the impact of minimally logged operations on I/O: <a href="https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2008/dd425070(v=sql.100)?redirectedfrom=MSDN">The Data Loading Performance Guide</a></p>
+<p>In essence we can insert data fast (with minimal logging) when these conditions are met:</p>
+<ul>
+<li>database is in <code>SIMPLE</code> or <code>BULK_LOGGED</code> recovery mode,</li>
+<li>target table is a <em>heap table</em> (without clustered index),</li>
+<li>a <code>WITH (TABLOCK)</code> hint is used with the insert (allows exclusive lock on the target table).</li>
+</ul>
+<p>There is additional performance boost using the latter in SQL Server 2016 and higher - <code>INSERT...SELECT WITH (TABLOCK)</code> may use parallel inserts.</p>
+<p>So back to my deletion problem - what if instead of delete I do the following:</p>
+<ol>
+<li>Create a heap table with exactly the same structure as the one I want to delete from</li>
+<li>Move to the heap table data I want to <strong>keep</strong> using <code>INSERT...SELECT WITH (TABLOCK)</code></li>
+<li>Drop the original table (metadata-only operation, fast)</li>
+<li>Rename the heap table to original one's name</li>
+<li>Create indexes, constraints, references etc.</li>
+</ol>
+<p><em><strong>TL;DR;</strong></em> Yes, it worked and it was way faster without growing the transaction log since all operations were minimally logged.<br />
+Replacing deletion of my around 30 problematic tables with this technique lead to deletion of everything but a mid-sized tenant data to complete in 15 minutes.<br />
+Deletion of everything but the largest tenant (moving the most data) completed in 1 hour.</p>
+<h3 id="generating-the-sql">Generating the SQL</h3>
+<p>Although I was quite happy with the performance, there was another problem - scripting the heap tables, moving the data and re-creating the indexes by hand is tedious and error prone (imagine doing it for 30 tables).</p>
+<p>SQL Server Management Studio has a lot of scripting capabilities and fortunately they are available via the <a href="https://docs.microsoft.com/en-us/sql/relational-databases/server-management-objects-smo/sql-server-management-objects-smo-programming-guide?view=sql-server-ver15">SQL Management Objects</a> (SMO). It is a set of .NET Framework assemblies meaning that they can be used from PowerShell also.</p>
+<p>Loading the assemblies and creating <code>Microsoft.SqlServer.Management.Smo.Server</code> instance is the first step:</p>
+<pre><code class="language-powershell">[System.Reflection.Assembly]::LoadWithPartialName(&quot;Microsoft.SqlServer.Smo&quot;)
+[System.Reflection.Assembly]::LoadWithPartialName(&quot;Microsoft.SqlServer.ConnectionInfo&quot;)
+
+$connection = New-Object System.Data.SqlClient.SqlConnection $sqlConnectionString
+$serverConnection = New-Object Microsoft.SqlServer.Management.Common.ServerConnection $connection
+
+[Microsoft.SqlServer.Management.Smo.Server] $server = New-Object Microsoft.SqlServer.Management.Smo.Server $serverConnection
+</code></pre>
+<p>To create a heap table:</p>
+<pre><code class="language-powershell">$scripter = New-Object Microsoft.SqlServer.Management.Smo.Scripter $server
+
+$script = $scripter.Script(($server.Databases[$connection.Database].Tables[$table]))
+
+# scripter can only generate scripts for existing objects so we need to change the table name 
+$script[2] = $script[2].Replace(&quot;CREATE TABLE [dbo].[$table]&quot;, &quot;CREATE TABLE [dbo].[$heapTable]&quot;)
+$script
+</code></pre>
+<p>For moving the data, we can generate the columns list to use in the insert statement:</p>
+<pre><code class="language-powershell">$columnNames = $server.Databases[$connection.Database].Tables[$table].Columns | Select-Object $_ | ForEach-Object {$_.Name}
+$columns = [System.String]::Join(', ', $columnNames)
+
+$sql = New-Object System.Collections.Specialized.StringCollection
+$sql.Add(&quot;INSERT INTO $heapTable WITH(TABLOCK)&quot;) &gt; $null
+$sql.Add(&quot;($columns)&quot;) &gt; $null
+$sql.Add(&quot;SELECT&quot;) &gt; $null
+$sql.Add(&quot;$columns FROM $table &quot;) &gt; $null
+$sql.Add(&quot;$whereClause&quot;) &gt; $null
+
+$sql
+</code></pre>
+<p>There are some pitfalls to consider:</p>
+<ul>
+<li>beware of <code>TIMESTAMP</code> columns: you cannot insert them</li>
+<li>beware of <code>IDENTITY</code> columns: I found it hard to change column to identity so create it as an identity and use <code>SET IDENTITY_INSERT ON/OFF</code></li>
+<li>again for <code>IDENTITY</code> columns: the scripter will capture the current identity seed when generating the script but it will be executed at some later point and the seed will be different. Thus in my script I capture the seed from the original table column after the data is moved and reseed the column of the heap table. To find the identity column you can use something like:</li>
+</ul>
+<pre><code class="language-powershell">$server.Databases[$connection.Database].Tables[$table].Columns | Where-Object { $_.Identity -eq $true } | Select-Object -First 1
+</code></pre>
+<ul>
+<li>depending on your <code>$whereClause</code> you may need to prefix the columns in the select list, e.g. when using something like <code>SELECT x.ID FROM x_Table x JOIN y_Table y on y.Id=x.Id...</code></li>
+</ul>
+<p>Before dropping the original table we need to remove all references to it's Primary Key:</p>
+<pre><code class="language-powershell">$inboundForeignKeys = $server.Databases[$connection.Database].Tables[$table].EnumForeignKeys()
+foreach($foreignKey in $inboundForeignKeys)
+{
+    Write-Output &quot;ALTER TABLE [dbo].[$($foreignKey['Table_Name'])] DROP CONSTRAINT [$($foreignKey['Name'])];&quot;
+}
+</code></pre>
+<p>If you have triggers or schema-bound objects or anything preventing table to be drop should be taken care of - luckily in my case there was not.
+Then we can drop the original table and rename the heap table. Nothing special required - <code>DROP TABLE</code> and <code>sp_rename</code>.</p>
+<p>The last step is to create primary and foreign keys, defaults, constraints and indexes:</p>
+<pre><code class="language-powershell"># indexes, including primary key
+$scripter = New-Object Microsoft.SqlServer.Management.Smo.Scripter $server
+$scripter.Options.NoCollation = $true
+$scripter.Options.DriPrimaryKey = $true
+$scripter.Options.DriUniqueKeys = $true
+$scripter.Options.ClusteredIndexes = $true
+$scripter.Options.NonClusteredIndexes = $true
+$scripter.Options.Indexes = $true
+$scripter.Options.DriAll = $true
+
+[Microsoft.SqlServer.Management.Smo.SqlSmoObject[]]$indexes = $server.Databases$connection.Database].Tables[$table].Indexes
+
+$scripter.Script($indexes)
+
+# default constraints
+$columns = $server.Databases[$connection.Database].Tables[$table].Columns
+foreach($column in $columns)
+{
+    if($column.DefaultConstraint)
+    {
+        $column.DefaultConstraint.Script()
+    }
+}
+
+# foreign keys
+[Microsoft.SqlServer.Management.Smo.SqlSmoObject[]]$foreignKeys = $server.Databases[$connection.Database].Tables[$table].ForeignKeys
+
+$scripter.Script($foreignKeys)
+
+# foreign keys referencing the table
+$inboundForeignKeys = $server.Databases[$connection.Database].Tables[$table].EnumForeignKeys()
+foreach($foreignKey in $inboundForeignKeys)
+{
+    [Microsoft.SqlServer.Management.Smo.SqlSmoObject[]]$key = $server.Databases[$connection.Database].Tables[$foreignKey['Table_Name']].ForeignKeys[$foreignKey['Name']]
+
+    $scripter.Script($key)
+}
+</code></pre>
+<p>These are the most important the pieces I needed to generate the SQL.</p>
+<p>In practice I turned the initial deletion SQL script into a kind of template containing the standard deletion statements and occasionally a palceholder with the table name and where clause defining the data to be kept. Then a PowerShell script will read the template and replace the placeholders with SQL statements generated using the steps described above.</p>
+<p>Having automated SQL script generation based on the actual metadata has two main advantages:</p>
+<ul>
+<li>removes the repetitive (and boring) manual work</li>
+<li>when the schema changes (e.g. a table is added or altered, column is changed or dropped, index is created, etc.) the SQL script can be easily generated again</li>
+</ul>
+<h2 id="conclusion">Conclusion</h2>
+<p>Replacing a regular SQL deletes with inserting in heap table and dropping the original one has achieved a satisfying performance boost. It is a combination of SQL Server's data loading capabilities and minimally logged operations. In my case it worked good since I needed to keep (move) 20-30% of the table's data.</p>
+<p>Implementation is more complex than regular deletes so an automated SQL script generation comes handy.</p>
+<p>The downside of the solution is it's complexity so I would recommend it only as a last resort.</p>
+
+
+
+                                </div>
+                        </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Footer -->
+                <footer>
+                        <div class="container">
+        <div class="row">
+                <ul class="list-inline text-center">
+                        <li>
+                            <a href="https://www.linkedin.com/in/petar-marinov-marinov">
+                                <span class="fa-stack">
+                                    <i class="fa fa-linkedin-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/petar-m/">
+                                <span class="fa-stack">
+                                    <i class="fa fa-github-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                <div class="col-md-12 text-center">
+                    <p class="copyright text-muted">
+                        Copyright © 2020
+                        <br />
+                            <a href="/feed.rss"><i class="fa fa-rss"></i> RSS Feed</a>
+                        |
+                            <a href="/feed.atom"><i class="fa fa-rss"></i> Atom Feed</a>
+                        <br />
+                        <strong><a href="https://wyam.io">Generated by Wyam</a></strong>
+                    </p>
+                </div>
+        </div>
+</div>
+                </footer> 
+
+                <script src="/assets/js/jquery.min.js"></script>
+                <script src="/assets/js/bootstrap.min.js"></script>     
+                <script src="/assets/js/highlight.pack.js"></script>   
+                <script src="/assets/js/clean-blog.js"></script>
+                <script src="/assets/js/d3.v3.min.js"></script>
+                <script src="/assets/js/trianglify.min.js"></script>
+                <script src="/assets/js/Please-compressed.js"></script>
+                <script src="/assets/js/background-check.min.js"></script>
+
+                <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+                <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+                <!--[if lt IE 9]>
+                        <script src="/assets/js/html5shiv.js"></script>
+                        <script src="/assets/js/respond.min.js"></script>
+                <![endif]-->
+                
+                
+                <script>hljs.initHighlightingOnLoad();</script>
+
+                        <script type="text/javascript">                
+                                // Header background                        
+                                var colors = Please.make_color({
+                                        colors_returned: 3,
+                                        saturation: .6
+                                });
+                                var t = new Trianglify({
+                                        x_gradient: colors,
+                                        y_gradient: ["#FFFFFF"]
+                                });
+                                var header = document.getElementById("intro-header");
+                                var pattern = t.generate(header.clientWidth, header.clientHeight);
+                                header.setAttribute('style', 'background-image: ' + pattern.dataUrl);                        
+                        </script>
+
+                <script>
+                        BackgroundCheck.init({
+                                targets: '.intro-header,.navbar',
+                                images: '.intro-header'
+                        });
+                </script>
+        </body>
+</html>
+
