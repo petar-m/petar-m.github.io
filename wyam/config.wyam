@@ -1,7 +1,7 @@
 #recipe Blog
 
 // Customize your settings and add new ones here
-Settings[Keys.Host] = "host.com";
+Settings[Keys.Host] = "pmarinov.xyz";
 Settings[BlogKeys.Title] = "Petar Marinov";
 Settings[BlogKeys.Description] = "/dev/shared";
 
