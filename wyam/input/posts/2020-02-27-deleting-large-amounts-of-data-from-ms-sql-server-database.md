@@ -1,11 +1,11 @@
 Title: Deleting large amounts of data from MS SQL Server database
 Description: An alternative approach for deleting data and script generation
 Published: 27/2/2020
-Tags: [SQL, PowerShell]
+Tags: [SQL, PowerShell, SMO]
 ---
 <!--- # Deleting large amounts of data from MS SQL Server database --->
 
-Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size.
+Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me overcome these obstacles.
 
 ## Background
 
