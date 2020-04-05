@@ -2,16 +2,16 @@
 <rss xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
 	<channel>
 		<title>Petar Marinov</title>
-		<link>http://pmarinov.xyz/</link>
+		<link>https://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2020</copyright>
-		<pubDate>Sun, 22 Mar 2020 21:36:33 GMT</pubDate>
-		<lastBuildDate>Sun, 22 Mar 2020 21:36:33 GMT</lastBuildDate>
+		<pubDate>Sun, 05 Apr 2020 13:48:06 GMT</pubDate>
+		<lastBuildDate>Sun, 05 Apr 2020 13:48:06 GMT</lastBuildDate>
 		<item>
 			<title>Breaking change in Entity Framework Core provider for PostgreSQL 3.0</title>
-			<link>http://pmarinov.xyz/posts/2020-03-22-breaking-change-in-entity-framework-core-provider-for-postgresql-3</link>
+			<link>https://pmarinov.xyz/posts/2020-03-22-breaking-change-in-entity-framework-core-provider-for-postgresql-3</link>
 			<description>&lt;p&gt;Beware when upgrading form &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 2.2&lt;/code&gt; and running &lt;code&gt;PostgreSQL 9.6&lt;/code&gt; or earlier.&lt;/p&gt;</description>
-			<guid>http://pmarinov.xyz/posts/2020-03-22-breaking-change-in-entity-framework-core-provider-for-postgresql-3</guid>
+			<guid>https://pmarinov.xyz/posts/2020-03-22-breaking-change-in-entity-framework-core-provider-for-postgresql-3</guid>
 			<pubDate>Sun, 22 Mar 2020 00:00:00 GMT</pubDate>
 			<content:encoded>&lt;!-- # Breaking change in Entity Framework Core provider for PostgreSQL 3.0 --&gt;
 &lt;p&gt;Beware when upgrading form &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 2.2&lt;/code&gt; and running &lt;code&gt;PostgreSQL 9.6&lt;/code&gt; or earlier.&lt;/p&gt;
@@ -72,9 +72,9 @@ Then removed the migrations folder from my project and was ready to go.&lt;/p&gt
 		</item>
 		<item>
 			<title>Deleting large amounts of data from MS SQL Server database</title>
-			<link>http://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</link>
+			<link>https://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</link>
 			<description>&lt;p&gt;Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me overcome these obstacles.&lt;/p&gt;</description>
-			<guid>http://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</guid>
+			<guid>https://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</guid>
 			<pubDate>Thu, 27 Feb 2020 00:00:00 GMT</pubDate>
 			<content:encoded>&lt;!--- # Deleting large amounts of data from MS SQL Server database ---&gt;
 &lt;p&gt;Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me overcome these obstacles.&lt;/p&gt;
