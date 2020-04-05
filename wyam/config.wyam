@@ -6,3 +6,4 @@ Settings[BlogKeys.Title] = "Petar Marinov";
 Settings[BlogKeys.Description] = "/dev/shared";
 
 // Add any pipeline customizations here
+Settings[Keys.LinksUseHttps] = true;

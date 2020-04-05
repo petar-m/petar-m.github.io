@@ -1,0 +1,4 @@
+wyam -r Blog -t CleanBlog -p -w
+
+wyam build -r Blog -t CleanBlog
+
