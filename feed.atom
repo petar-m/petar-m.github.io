@@ -4,12 +4,12 @@
 	<title>Petar Marinov</title>
 	<link rel="self" href="https://pmarinov.xyz/" />
 	<rights>2020</rights>
-	<updated>2020-05-03T15:58:30Z</updated>
+	<updated>2020-05-03T16:29:26Z</updated>
 	<subtitle>/dev/shared</subtitle>
 	<entry>
-		<id>https://pmarinov.xyz/posts/2020-05-03-structuring-data-dccess</id>
+		<id>https://pmarinov.xyz/posts/2020-05-03-structuring-data-access</id>
 		<title>Structuring Data Access</title>
-		<link href="https://pmarinov.xyz/posts/2020-05-03-structuring-data-dccess" />
+		<link href="https://pmarinov.xyz/posts/2020-05-03-structuring-data-access" />
 		<updated>2020-05-03T00:00:00Z</updated>
 		<content>&lt;!-- # Structuring Data Access --&gt;
 &lt;h2 id="background"&gt;Background&lt;/h2&gt;

@@ -5,13 +5,13 @@
 		<link>https://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2020</copyright>
-		<pubDate>Sun, 03 May 2020 15:58:30 GMT</pubDate>
-		<lastBuildDate>Sun, 03 May 2020 15:58:30 GMT</lastBuildDate>
+		<pubDate>Sun, 03 May 2020 16:29:26 GMT</pubDate>
+		<lastBuildDate>Sun, 03 May 2020 16:29:26 GMT</lastBuildDate>
 		<item>
 			<title>Structuring Data Access</title>
-			<link>https://pmarinov.xyz/posts/2020-05-03-structuring-data-dccess</link>
+			<link>https://pmarinov.xyz/posts/2020-05-03-structuring-data-access</link>
 			<description>&lt;p&gt;Best practices in software development dictate that data storage and retrieval should be treated as an implementation detail. In practice it is easier said than done though - there are endless debates about how much abstraction is needed, whether the Repository Pattern is still relevant and if yes how to implement it, are ORMs good or evil, Micro ORMs and so on.&lt;/p&gt;</description>
-			<guid>https://pmarinov.xyz/posts/2020-05-03-structuring-data-dccess</guid>
+			<guid>https://pmarinov.xyz/posts/2020-05-03-structuring-data-access</guid>
 			<pubDate>Sun, 03 May 2020 00:00:00 GMT</pubDate>
 			<content:encoded>&lt;!-- # Structuring Data Access --&gt;
 &lt;h2 id="background"&gt;Background&lt;/h2&gt;
