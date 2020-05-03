@@ -1,0 +1,266 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+
+        <title>Petar Marinov - Structuring Data Access</title>
+        <meta name="description" content="/dev/shared" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">        
+
+        <link type="application/rss+xml" rel="alternate" title="Petar Marinov" href="/feed.rss" />
+                <link type="application/atom+xml" rel="alternate" title="Petar Marinov" href="/feed.atom" />
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+        <link href="/assets/css/bootstrap.min.css" rel="stylesheet" />
+        <link href="/assets/css/highlight.css" rel="stylesheet">
+        <link href="/assets/css/clean-blog.css" rel="stylesheet" />
+        <link href="/assets/css/master.css" rel="stylesheet" />
+        <link href="/assets/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+        <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+        <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+        <link href="/assets/css/override.css" rel="stylesheet" />
+
+
+        <meta name="application-name" content="Petar Marinov" />
+        <meta name="msapplication-tooltip" content="Petar Marinov" />
+        <meta name="msapplication-starturl" content="/" />
+
+        <meta property="og:title" content="Petar Marinov - Structuring Data Access" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://pmarinov.xyz/posts/2020-05-03-structuring-data-dccess" />
+        <!-- TODO: More social graph meta tags -->
+
+        
+
+
+        </head>
+        <body>
+                
+                <!-- Navigation -->
+                <nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+                        <div class="container-fluid">
+                                <!-- Brand and toggle get grouped for better mobile display -->
+                                <div class="navbar-header page-scroll">
+                                        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+                                        <span class="sr-only">Toggle navigation</span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        </button>
+                                        <a class="navbar-brand" href="/">Petar Marinov</a>
+                                </div>
+                        
+                                <!-- Collect the nav links, forms, and other content for toggling -->
+                                <div class="collapse navbar-collapse" id="navbar-collapse">
+                                        <ul class="nav navbar-nav navbar-right">
+                                                        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+ 
+                                        </ul>
+                                </div>
+                                <!-- /.navbar-collapse -->
+                        </div>
+                        <!-- /.container -->
+                </nav>
+                
+                <!-- Page Header -->
+                <header class="intro-header" id="intro-header">
+                        <div class="container">
+                                <div class="row">
+                                        <div class="col-md-12">
+
+    
+<div class="post-heading">
+    <h1>Structuring Data Access</h1>
+    <div class="meta">        
+Published on 03 May 2020<br>    </div>
+        <div class="tags">
+                    <a role="button" href="/tags/General" class="btn btn-default btn-xs">General</a>
+        </div>     
+</div>
+                                        </div>
+                                </div>
+                        </div>
+                </header>
+                
+                <!-- Main Content -->
+                <div class="container">
+                        <div class="row">
+                                <div id="content" class="col-md-12">
+                                        
+
+<!-- # Structuring Data Access -->
+<h2 id="background">Background</h2>
+<p>Best practices in software development dictate that data storage and retrieval should be treated as an implementation detail. In practice it is easier said than done though - there are endless debates about how much abstraction is needed, whether the Repository Pattern is still relevant and if yes how to implement it, are ORMs good or evil, Micro ORMs and so on.</p>
+<p>Here are some solutions with their strengths and weaknesses.</p>
+<h2 id="full-encapsulation">Full Encapsulation</h2>
+<p>&quot;Full Encapsulation&quot; is inspired by Uncle Bob's <a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html">Clean Architecture</a> - have an abstraction with simple data structures going in and out. Internally the data access implementation will map these simple data structures to storage entities which suit best the libraries or frameworks used. In terms of total decoupling from any storage technology this is the best approach. It's strict abstraction gives a lot of flexibility - i.e. a team can work on the data access details or multiple data access implementations can be switched or <a href="https://en.wikipedia.org/wiki/Polyglot_persistence">Polyglot Persistence</a> strategy can be utilized. Some implementations guidelines:</p>
+<ul>
+<li><p>Organize abstractions and implementations to be in different assemblies (packages, modules) (<a href="https://www.martinfowler.com/eaaCatalog/separatedInterface.html">Separated interface</a>). I have often seen both in the same place - from practical point of view this is not a bad thing but if you think about different implementation you will need to depend on all the concrete stuff along with the abstractions.</p>
+</li>
+<li><p>Prefer persistence ignorant abstractions (i.e. do not expose a <code>Save()</code> method) - each is atomic operation by itself. It is possible to have multiple abstractions to act as atomic action by introducing a variation of <a href="https://www.martinfowler.com/eaaCatalog/unitOfWork.html">Unit Of Work</a>. Personally I will not go this way since it introduces significant amount of complexity - individual abstractions will loose their autonomy and probably will have implicit dependencies, additional authority (the Unit of Work) should be managed and ultimately it will complicate usage from consumer perspective.</p>
+</li>
+<li><p>Consider some form of <a href="https://en.wikipedia.org/wiki/Specification_pattern">Specification</a> for retrieving data. It does not have to be a strict implementation of the pattern, rather it's intent is to provide a way for declaring some aspect of the data we are interested in. This will simply allow for grouping similar data access patterns together i.e. if we have orders we can specify time range, customer, product, etc. I would not go too far with this trying to define every possible case. Instead when complexity grows beyond certain point I would split in different abstractions i.e. customer's orders, product's orders, etc. - each having appropriate &quot;specification&quot;.</p>
+</li>
+<li><p>There is no need the abstraction to be about a single entity - it can represent a series of actions serving specific business case, i.e. storing related data in multiple database tables or pulling data from multiple sources to generate a report.</p>
+</li>
+<li><p>Prefer having a single public method. This will keep the focus on single functionality and make it simple to use.</p>
+</li>
+<li><p>Sometimes having abstraction for input and output data may be an overkill - than <a href="https://en.wikipedia.org/wiki/Data_transfer_object">DTOs</a> can be used instead. In both cases I would not add any behavior to them.</p>
+</li>
+</ul>
+<p>Working on the data access in this setup is absolute joy - being shielded from other parts of the system gives you freedom. You can use whatever libraries/frameworks, technologies and data sources you need. This is the place where choice actually matters - you will choose a technology/framework/library because you'll pit to use it's unique features. At the same time the <a href="https://en.wikipedia.org/wiki/Leaky_abstraction">&quot;leakiness&quot;</a> of the abstraction can be minimal. Testing strategy is also clear - integration tests for the implementation and mocks for unit tests.</p>
+<p>Unfortunately such strict abstraction also has it's downsides:</p>
+<ul>
+<li><p>The number of abstractions, implementations and mappings will grow in time since usually each business case will become to have it's own unique requirements. Striking the balance between reusability and simplicity may become very tricky and hard to recognize.</p>
+</li>
+<li><p>A business case will become &quot;stretched&quot; through layers which may lead to having hard time investigating issues or trying to get the &quot;big picture&quot;. (Which is true for each layered system btw.)</p>
+</li>
+<li><p>The tradeoff for encapsulation is mapping - not only mapping the defined contract in and out the data access but also the consumer will have to do the same to it's own representation. This truly shines when storage model differs drastically from business models but when they are alike it becomes a burden since there is little benefit to be seen.
+I have observed a few times that in early stages of system implementation domain and storage entities are 1:1 thus mapping only gets in the way and gets rejected because it &quot;slows down the work&quot;. It is only after the system goes live and becomes successful when subtle domain problems have to be solved - then domain model starts to deviate from the storage model.</p>
+</li>
+<li><p>If the system is mostly <a href="https://en.wikipedia.org/wiki/Create,_read,_update_and_delete">CRUD</a>-ish this can turn to annoyance very quickly - imo it is even not applicable from practical point of view in such case.</p>
+</li>
+</ul>
+<p>So what if &quot;Full Encapsulation&quot; does not work for you - maybe your system won't benefit from it or maybe you are working in a context of microservice where deliberately reducing the levels of indirection?</p>
+<h2 id="orm-without-abstraction">ORM Without Abstraction</h2>
+<p>Let's suppose data access is mostly about talking to a database. Then using <a href="https://en.wikipedia.org/wiki/Object-relational_mapping">ORM</a> framework makes sense in most cases. The big question here is whether putting an abstraction layer over another abstraction is necessary? The ORM will probably already implement the patterns you need like <a href="https://www.martinfowler.com/eaaCatalog/identityMap.html">Identity Map</a>, Unit Of Work, Specification, etc. and building abstraction over it will probably mimic the framework of choice. On the other hand letting a dependency on a framework deeply in domain implementation is not a light decision to take. It is definitely worth thinking it through.</p>
+<p>Personally I will byte the bullet and use the ORM directly without trying to abstract it. In this way I will be able to use it to full extent without restricting myself to abstraction of common ORM features. I will still try to keep data access separate from business logic as much as possible. I can take comfort in the fact that I have an abstraction for the popular relational databases out there (if I ever need to switch). Databases and their supporting technologies have long lifecycles (compared to frontend ones for example). Most of them have reached maturity and will stay around for the foreseeable future.</p>
+<p>Testing strategy is not so clear in this case. I will mock the ORM for unit tests and try to extract business logic so it can be tested separately. Some will also unit test data access by making the ORM work with in-memory data set - personally I don't think there is any value in it because there is too much difference with the real thing. Integration tests for the data access are the way to go, though if there is a lot of mixing with business logic there no clear cut what each test should cover. Some will argue that data access is also business logic but I guess it depends on the point of view.</p>
+<p>There are cases when this will not be possible though - company policies, strong opinions or something already in place.</p>
+<h2 id="repository-pattern">Repository Pattern</h2>
+<p>The <a href="https://www.martinfowler.com/eaaCatalog/repository.html">Repository Pattern</a> is the most popular approach for abstracting data access. It is also the most controversial. In my opinion its flaw is that it tries to oversimplify data access by pretending it is an in-memory collection. I often dislike that it is built around single entity and depending on implementation can enforce same interface for all entities.</p>
+<p>There are some nuances in implementations worth noting:</p>
+<ul>
+<li>Usually the Repository will be accompanied by Unit of Work and Specification implementations.</li>
+<li>Persistence ignorance vs persistence awareness: basically the choice whether the consumer does not care about persistence details and will let infrastructure deal with saving, transactions handling, etc. or the consumer will have to explicitly manage them (i.e. call <code>Save()</code> method).</li>
+<li>Level of abstraction when using ORM: the promise of ORM is that it will let you persist your business/domain objects in database seamlessly. In practice this is not happening - business objects are now &quot;serving two masters&quot; and they have to comply with the rules of the ORM which in turn can contradict the domain goals (mainly structuring and encapsulation). Another problem is that ORM abstractions are &quot;leaky&quot;. An example from <a href="https://docs.microsoft.com/en-us/ef">Entity Framework</a> - the concept navigation property. You never know whether it was eagerly loaded and there is no data, it is not loaded and you have to do it explicitly or it will be lazy loaded given lazy loading is enabled. And how to translate <code>.Include()</code> as a meaningful domain concept? Another example is the <code>.AsNoTracking()</code> - how can your domain know that an entity is obtained in a special way so that changes to it will not be persisted? One solution to this is to have separate business objects from database entities and provide mapping between them (or even introduce intermediary DTOs). This will make the domain &quot;pure&quot; but unfortunately it adds additional complexity and as described in &quot;Full Encapsulation&quot; it can be quite a burden for simple cases.</li>
+<li>Usually the Repository implementation will cover the most of the cases. For the non-trivial cases (i.e. batch processing, weird queries) I would introduce separate abstractions instead of trying fit everything in the Repository implementation.</li>
+</ul>
+<h3 id="generic-repository-implementation">Generic Repository Implementation</h3>
+<p>If generic implementation is feasible/possible with the tools at hand I would go for it. Implementation will probably be shaped around the underlying framework since it will probably support generics too. Unit of Work, Specification and a way of defining projections (get only the data that you'll need) are mandatory for successful usage. Usually such implementations are quite compact and will save a lot of coding. Some will argue that this is too much of generalization and it does not convey meaningful domain concepts - I tend to agree with this to some extent.</p>
+<p>I prefer using generic repository with domain services, each service &quot;orchestrating&quot; execution of specific use case (or domain concept). It will build specifications declaring the data it needs, delegate execution to the repository, then use the result to apply business logic. It can also dispatch the execution of complex domain logic to specialized classes.</p>
+<p>This approach makes very readable and maintainable use case implementations. The declarative nature of specifications leads to service &quot;owning&quot; it's data access. The ability to create and reuse named specifications allows defining of consistent and meaningful definition of queries. Projections give more insight of what data exactly is needed for a particular case.</p>
+<p>Consideration for testing are pretty much the same as if ORM is used directly. We can go one step further by unit testing the Specifications ensuring we use declare correct input. This will not replace integration test though.</p>
+<h3 id="non-generic-repository-implementation">Non Generic Repository Implementation</h3>
+<p>Non generic repository implementation can become really close to &quot;Full Encapsulation&quot;. Unfortunately the same downsides are valid also. The number of abstractions and implementations will grow in time. I would recommend figuring out some form of Specification (which appears to be recurring theme in this post). Otherwise you'll end up with methods clustered around some entity where each case will have it's own method. I have seen such abstractions with more than 30 methods having absurd names like <code>GetOrdersOverTotalPriceTresholdForPeriodForCustomerForProductIncludingShippingInfoAndInvoiceNumber</code>. Even worse is a method with more general name having 15 parameters with 12 of them optional. At some point no one will look at them and will just add another method or parameter that he needs leading to massive code duplications.</p>
+<p>Implemented with care non generic repository can become a good abstraction. Testing is also clear - mocks for repositories and tests for specifications in unit tests, integration tests for implementations.</p>
+<h2 id="more">More...</h2>
+<p>There are more things to be considered for data access, which usually come up along the way:
+batch processing, caching, performance, transactions, compensating actions, concurrency issues, retry policies to name a few. I have not touched upon <a href="https://martinfowler.com/eaaDev/EventSourcing.html">Event Sourcing</a> and <a href="https://en.wikipedia.org/wiki/Command%E2%80%93query_separation#Command_query_responsibility_segregation">CQRS</a> since I look at them as a bit more specialized solutions to specific problems.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>If you are more confused now than before reading this post it is probably a good thing. Data access should be an implementation detail but it does not mean it will be easy. The only advice I can give is to take a pragmatic approach, not a dogmatic one. Do what works best for you, your team and the software you build. And if something does not work well - don't be afraid to change it.</p>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'pmarinov';
+    var disqus_identifier = '2020-05-03-structuring-data-dccess';
+    var disqus_title = 'Structuring Data Access';
+    var disqus_url = 'https://pmarinov.xyz/posts/2020-05-03-structuring-data-dccess';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+    
+    (function () {
+        var s = document.createElement('script'); s.async = true;
+        s.type = 'text/javascript';
+        s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+        (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+    }());
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                </div>
+                        </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Footer -->
+                <footer>
+                        <div class="container">
+        <div class="row">
+                <ul class="list-inline text-center">
+                        <li>
+                            <a href="https://www.linkedin.com/in/petar-marinov-marinov">
+                                <span class="fa-stack">
+                                    <i class="fa fa-linkedin-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/petar-m/">
+                                <span class="fa-stack">
+                                    <i class="fa fa-github-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                <div class="col-md-12 text-center">
+                    <p class="copyright text-muted">
+                        Copyright © 2020
+                        <br />
+                            <a href="/feed.rss"><i class="fa fa-rss"></i> RSS Feed</a>
+                        |
+                            <a href="/feed.atom"><i class="fa fa-rss"></i> Atom Feed</a>
+                        <br />
+                        <strong><a href="https://wyam.io">Generated by Wyam</a></strong>
+                    </p>
+                </div>
+        </div>
+</div>
+                </footer> 
+
+                <script src="/assets/js/jquery.min.js"></script>
+                <script src="/assets/js/bootstrap.min.js"></script>     
+                <script src="/assets/js/highlight.pack.js"></script>   
+                <script src="/assets/js/clean-blog.js"></script>
+                <script src="/assets/js/d3.v3.min.js"></script>
+                <script src="/assets/js/trianglify.min.js"></script>
+                <script src="/assets/js/Please-compressed.js"></script>
+                <script src="/assets/js/background-check.min.js"></script>
+
+                <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+                <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+                <!--[if lt IE 9]>
+                        <script src="/assets/js/html5shiv.js"></script>
+                        <script src="/assets/js/respond.min.js"></script>
+                <![endif]-->
+                
+                
+                <script>hljs.initHighlightingOnLoad();</script>
+
+                        <script type="text/javascript">                
+                                // Header background                        
+                                var colors = Please.make_color({
+                                        colors_returned: 3,
+                                        saturation: .6
+                                });
+                                var t = new Trianglify({
+                                        x_gradient: colors,
+                                        y_gradient: ["#FFFFFF"]
+                                });
+                                var header = document.getElementById("intro-header");
+                                var pattern = t.generate(header.clientWidth, header.clientHeight);
+                                header.setAttribute('style', 'background-image: ' + pattern.dataUrl);                        
+                        </script>
+
+                <script>
+                        BackgroundCheck.init({
+                                targets: '.intro-header,.navbar',
+                                images: '.intro-header'
+                        });
+                </script>
+        </body>
+</html>
+
