@@ -58,8 +58,11 @@ The [Repository Pattern](https://www.martinfowler.com/eaaCatalog/repository.html
 
 There are some nuances in implementations worth noting:
 - Usually the Repository will be accompanied by Unit of Work and Specification implementations.
+
 - Persistence ignorance vs persistence awareness: basically the choice whether the consumer does not care about persistence details and will let infrastructure deal with saving, transactions handling, etc. or the consumer will have to explicitly manage them (i.e. call `Save()` method).
+
 - Level of abstraction when using ORM: the promise of ORM is that it will let you persist your business/domain objects in database seamlessly. In practice this is not happening - business objects are now "serving two masters" and they have to comply with the rules of the ORM which in turn can contradict the domain goals (mainly structuring and encapsulation). Another problem is that ORM abstractions are "leaky". An example from [Entity Framework](https://docs.microsoft.com/en-us/ef) - the concept navigation property. You never know whether it was eagerly loaded and there is no data, it is not loaded and you have to do it explicitly or it will be lazy loaded given lazy loading is enabled. And how to translate `.Include()` as a meaningful domain concept? Another example is the `.AsNoTracking()` - how can your domain know that an entity is obtained in a special way so that changes to it will not be persisted? One solution to this is to have separate business objects from database entities and provide mapping between them (or even introduce intermediary DTOs). This will make the domain "pure" but unfortunately it adds additional complexity and as described in "Full Encapsulation" it can be quite a burden for simple cases.  
+
 - Usually the Repository implementation will cover the most of the cases. For the non-trivial cases (i.e. batch processing, weird queries) I would introduce separate abstractions instead of trying fit everything in the Repository implementation. 
 
 ### Generic Repository Implementation  
