@@ -5,21 +5,21 @@ Tags: [SQL, PowerShell, SMO]
 ---
 <!--- # Deleting large amounts of data from MS SQL Server database --->
 
-Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me overcome these obstacles.
+Deleting a large number of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me to overcome these obstacles.
 
 ## Background
 
-My problem was that in a multi-tenant database a tenant has grown too much - to the point that it had to be moved to it's own database. The plan was to restore a backup of the database and delete all other tenant's data. The database had around 150 tables - for most of them deletions were not a problem - but for around 20 of them more than 10 million rows were to be deleted and for particular 5 tables more than 600 million.
+My problem was that in a multi-tenant database a tenant has grown too much - to the point that it had to be moved to its own database. The plan was to restore a backup of the database and delete all other tenant's data. The database had around 150 tables - for most deletions were not a problem - but for around 20 of them more than 10 million rows were to be deleted and for particular 5 tables more than 600 million.
 
 ## First iteration: Standard deletions
 
-For the first version of the deletion I used standard delete statements similar to:  
+For the first version of the deletion, I used standard delete statements similar to:  
 
 ``` sql
 DELETE x FROM a_table x JOIN @TenantsToDelete t ON t.Id=x.TenantId; 
 ```  
-It worked fine on a small data set and was useful to confirm the deletion order and flush out some bad data and design oddities. Also it has no problem for few thousand to even tens of thousands of rows so it worked fine for the majority of the cases.  
-Where millions of rows were to be deleted it was taking long time and transaction log was growing rapidly. The full deletion script actually never ran to completion on production-grade data.  
+It worked fine on a small data set and was useful to confirm the deletion order and flush out some bad data and design oddities. Also, it has no problem for a few thousand to even tens of thousands of rows so it worked fine for the majority of the cases.  
+Where millions of rows were to be deleted it was taking a long time and transaction log was growing rapidly. The full deletion script actually never ran to completion on production-grade data.  
 
 ## Second iteration: Batched deletions  
 
@@ -32,20 +32,20 @@ delete_top:
   IF @batch_size = @@ROWCOUNT GOTO delete_top;
 ```  
 
-This version of the script was able to complete deletion of a single small-sized tenant for around 30 minutes, for a large one it took more than 15 hours - and I needed to remove around 40 of them. It was still no good.  
+This version of the script was able to complete the deletion of a single small-sized tenant for around 30 minutes, for a large one it took more than 15 hours - and I needed to remove around 40 of them. It was still no good.  
 
 ## Third iteration: Replace DELETE with INSERT
 
 So `DELETE` is slow and there is no much room for improvement. There is no _"bulk delete"_ kind of operation in MS SQL Server to boost the performance and I was not in a position to use `TRUNCATE` or `DROP TABLE` since I needed to preserve part of the data.  
 
-While searching for solution I found this article about optimizing loading of data and the impact of minimally logged operations on I/O: [The Data Loading Performance Guide](https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2008/dd425070(v=sql.100)?redirectedfrom=MSDN)  
+While searching for a solution I found this article about optimizing the loading of data and the impact of minimally logged operations on I/O: [The Data Loading Performance Guide](https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2008/dd425070(v=sql.100)?redirectedfrom=MSDN)  
 
-In essence we can insert data fast (with minimal logging) when these conditions are met:
- - database is in `SIMPLE` or `BULK_LOGGED` recovery mode,
- - target table is a _heap table_ (without clustered index),
+In essence, we can insert data fast (with minimal logging) when these conditions are met:
+ - the database is in `SIMPLE` or `BULK_LOGGED` recovery mode,
+ - the target table is a _heap table_ (without a clustered index),
  - a `WITH (TABLOCK)` hint is used with the insert (allows exclusive lock on the target table).
 
-There is additional performance boost using the latter in SQL Server 2016 and higher - `INSERT...SELECT WITH (TABLOCK)` may use parallel inserts.  
+There is an additional performance boost using the latter in SQL Server 2016 and higher - `INSERT...SELECT WITH (TABLOCK)` may use parallel inserts.  
 
 
 So back to my deletion problem - what if instead of delete I do the following:
@@ -53,17 +53,17 @@ So back to my deletion problem - what if instead of delete I do the following:
 2. Move to the heap table data I want to **keep** using `INSERT...SELECT WITH (TABLOCK)`
 3. Drop the original table (metadata-only operation, fast)
 4. Rename the heap table to original one's name
-5. Create indexes, constraints, references etc.
+5. Create indexes, constraints, references, etc.
    
 _**TL;DR;**_ Yes, it worked and it was way faster without growing the transaction log since all operations were minimally logged.  
-Replacing deletion of my around 30 problematic tables with this technique lead to deletion of everything but a mid-sized tenant data to complete in 15 minutes.  
+Replacing the deletion of my around 30 problematic tables with this technique lead to deletion of everything but a mid-sized tenant data to complete in 15 minutes.  
 Deletion of everything but the largest tenant (moving the most data) completed in 1 hour.  
 
 ### Generating the SQL  
 
-Although I was quite happy with the performance, there was another problem - scripting the heap tables, moving the data and re-creating the indexes by hand is tedious and error prone (imagine doing it for 30 tables).  
+Although I was quite happy with the performance, there was another problem - scripting the heap tables, moving the data, and re-creating the indexes by hand is tedious and error-prone (imagine doing it for 30 tables).  
 
-SQL Server Management Studio has a lot of scripting capabilities and fortunately they are available via the [SQL Management Objects](https://docs.microsoft.com/en-us/sql/relational-databases/server-management-objects-smo/sql-server-management-objects-smo-programming-guide?view=sql-server-ver15) (SMO). It is a set of .NET Framework assemblies meaning that they can be used from PowerShell also.  
+SQL Server Management Studio has a lot of scripting capabilities and fortunately, they are available via the [SQL Management Objects](https://docs.microsoft.com/en-us/sql/relational-databases/server-management-objects-smo/sql-server-management-objects-smo-programming-guide?view=sql-server-ver15) (SMO). It is a set of .NET Framework assemblies meaning that they can be used from PowerShell also.  
 
 Loading the assemblies and creating `Microsoft.SqlServer.Management.Smo.Server` instance is the first step:  
 
@@ -166,17 +166,17 @@ foreach($foreignKey in $inboundForeignKeys)
 }
 ```  
 
-These are the most important the pieces I needed to generate the SQL.  
+These are the most important pieces I needed to generate the SQL.  
 
-In practice I turned the initial deletion SQL script into a kind of template containing the standard deletion statements and occasionally a palceholder with the table name and where clause defining the data to be kept. Then a PowerShell script will read the template and replace the placeholders with SQL statements generated using the steps described above. 
+In practice, I turned the initial deletion SQL script into a kind of template containing the standard deletion statements and occasionally a placeholder with the table name and where clause defining the data to be kept. Then a PowerShell script will read the template and replace the placeholders with SQL statements generated using the steps described above. 
 
 Having automated SQL script generation based on the actual metadata has two main advantages:  
 - removes the repetitive (and boring) manual work
-- when the schema changes (e.g. a table is added or altered, column is changed or dropped, index is created, etc.) the SQL script can be easily generated again   
+- when the schema changes (e.g. a table is added or altered, a column is changed or dropped, an index is created, etc.) the SQL script can be easily generated again   
 
 ## Conclusion  
 
-Replacing a regular SQL deletes with inserting in heap table and dropping the original one has achieved a satisfying performance boost. It is a combination of SQL Server's data loading capabilities and minimally logged operations. In my case it worked good since I needed to keep (move) 20-30% of the table's data.  
+Replacing regular SQL deletes with inserting in heap table and dropping the original one has achieved a satisfying performance boost. It is a combination of SQL Server's data loading capabilities and minimally logged operations. In my case, it worked well since I needed to keep (move) 20-30% of the table's data.  
 
 Implementation is more complex than regular deletes so an automated SQL script generation comes handy.  
 
