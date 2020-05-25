@@ -4,6 +4,7 @@
 Settings[Keys.Host] = "pmarinov.xyz";
 Settings[BlogKeys.Title] = "Petar Marinov";
 Settings[BlogKeys.Description] = "/dev/shared";
+Settings[BlogKeys.IndexPageSize] = 5;
 
 // Add any pipeline customizations here
 Settings[Keys.LinksUseHttps] = true;
