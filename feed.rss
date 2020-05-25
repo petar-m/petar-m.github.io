@@ -5,8 +5,73 @@
 		<link>https://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2020</copyright>
-		<pubDate>Sun, 03 May 2020 16:41:45 GMT</pubDate>
-		<lastBuildDate>Sun, 03 May 2020 16:41:45 GMT</lastBuildDate>
+		<pubDate>Mon, 25 May 2020 18:05:08 GMT</pubDate>
+		<lastBuildDate>Mon, 25 May 2020 18:05:08 GMT</lastBuildDate>
+		<item>
+			<title>Layers and Features</title>
+			<link>https://pmarinov.xyz/posts/2020-05-25-layers-and-features</link>
+			<description>&lt;p&gt;Layered Architecture is a well known and proven approach when developing software. But should it always be the default choice?&lt;/p&gt;</description>
+			<guid>https://pmarinov.xyz/posts/2020-05-25-layers-and-features</guid>
+			<pubDate>Mon, 25 May 2020 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;h2 id="background"&gt;Background&lt;/h2&gt;
+&lt;p&gt;Layered Architecture is a well known and proven approach when developing software. But should it always be the default choice?&lt;/p&gt;
+&lt;h2 id="layered-architecture-problems"&gt;Layered Architecture Problems&lt;/h2&gt;
+&lt;p&gt;By &amp;quot;Layered Architecture&amp;quot; I refer to the class of software architectures using &lt;a href="https://en.wikipedia.org/wiki/Layer_(object-oriented_design)"&gt;Layers&lt;/a&gt; and the &lt;a href="https://en.wikipedia.org/wiki/Dependency_inversion_principle"&gt;Dependency Inversion Principle&lt;/a&gt;. &lt;a href="https://jeffreypalermo.com/2008/07/the-onion-architecture-part-1/"&gt;Onion&lt;/a&gt;, &lt;a href="https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)"&gt;Hexagonal&lt;/a&gt;, Ports and Adapters, &lt;a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"&gt;Clean&lt;/a&gt; are some notable definitions.&lt;/p&gt;
+&lt;p&gt;There is no doubt in the benefits of layers and Layered Architecture. Therefore I will go directly to what bothers me about it.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/layers.svg" class="img-fluid" alt="layers" /&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;It is often used as a system-wide architecture. To implement the first features, the layers need to be defined upfront. This means that once layers are in place, every feature should comply with them. The problem is that a decision having such a big impact on future development is made too early.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Adding a feature requires changes in multiple layers. In the early stages of development or when prototyping some new feature, this can be a burden. Also, future maintenance and development can become complicated.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Layers enforce abstraction - good layer design is to have an internal and external representation of the entities it handles. There are cases when this does not bring any value, e.g. simple &lt;a href="https://en.wikipedia.org/wiki/Create,_read,_update_and_delete"&gt;CRUD&lt;/a&gt; or reporting.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Sometimes having to go through all layers is an overhead. This is why some define layers as &amp;quot;closed&amp;quot; (it is mandatory to always go through it) and &amp;quot;open&amp;quot; (can be &amp;quot;skipped&amp;quot; in some cases). I don't find this a good practice. Once allowed such &amp;quot;shortcuts&amp;quot; will repeat over time leading to probably &amp;quot;open&amp;quot; all layers thus defeating the purpose.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Features tend to have specific requirements. Although layers promote reusability in most cases each layer will have abstractions serving specific features.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;So what can be used as an alternative?&lt;/p&gt;
+&lt;h2 id="vertical-slices"&gt;Vertical Slices&lt;/h2&gt;
+&lt;p&gt;&lt;a href="https://jimmybogard.com/vertical-slice-architecture/"&gt;Vertical Slices Architecture&lt;/a&gt; moves the boundaries from layers to features. The general idea is to group what is likely to change together.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/verticalslices.svg" class="img-fluid" alt="layers" /&gt;&lt;/p&gt;
+&lt;p&gt;Verticals slices do not exclude layers. The difference is that decisions can be made on a feature basis. Some features may benefit from a rich domain model and more strict layering and abstractions. For others, a simple &lt;a href="https://www.martinfowler.com/eaaCatalog/transactionScript.html"&gt;Transaction Script&lt;/a&gt; may be suitable, or &lt;a href="https://martinfowler.com/eaaDev/EventSourcing.html"&gt;Event Sourcing&lt;/a&gt; or &lt;a href="https://en.wikipedia.org/wiki/Command%E2%80%93query_separation#Command_query_responsibility_segregation"&gt;CQRS&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;There are some general considerations when using this approach:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Make features as independent as possible. Define a clear public interface for other features or the UI layer to use while keeping internal details private.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Be very careful when introducing shared components - do not introduce accidental coupling. That said there will be shared domain models and services that will emerge over time. It is normal to have a shared database at least in the beginning.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Strive toward reusable Application Infrastructure - security, logging, transactions, exception handling, lifetime scopes. All features should be able to benefit from it and concentrate on the business problem they solve.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Do not abandon the Dependency Inversion Principle - there are still benefits from decoupling within a feature.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Simple in-memory events or messaging can act as an additional way of decoupling features.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;My preference is to keep the UI in a separate layer (probably physically separated e.g. in different assembly/package/module). This gives me the flexibility to use different hosts for the application - web server, console application, or system service.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="are-we-done-with-the-architecture"&gt;Are We Done With the Architecture?&lt;/h2&gt;
+&lt;p&gt;Unfortunately, the answer is no. Generally speaking, architecture is never done when the software is still under development. I see Vertical Slices as something to start with, not the final thing. It requires attention to the code while it evolves. It means continuous refactoring and restructuring while getting more knowledge for the problem being solved.&lt;/p&gt;
+&lt;p&gt;These are some cases that can occur:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Two features can depend on each other with circular dependency. Probably this comes from wrongly defined feature boundary and they should be merged in one feature.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Multiple features depend on shared service. It is worth revisiting the design and review feature boundaries.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Code duplication in multiple features. Investigate whether it is really a code duplication or just a similar code in a different context. If it is really a duplication then it probably should be extracted.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Low cohesion within a feature. Probably the feature should be split into separate features.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Discover cohesion on the domain level. It possible to find out that the domain itself can be split into parts - a group of features may use given domain entities and a different group can use other entities with little to no crossing points.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;As the requirements change over time there are multiple directions to go. It may be appropriate to start extracting features into &lt;a href="https://en.wikipedia.org/wiki/Microservices"&gt;Microservices&lt;/a&gt;. The feature's public interface can become an API call. Events feature produces or consumes can be put on an external message queue.&lt;/p&gt;
+&lt;p&gt;If it makes sense there is nothing wrong to continue with a monolithic application. Then you can go on with &lt;a href="https://www.kamilgrzybek.com/design/modular-monolith-primer/"&gt;Modular Monolith&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Layered Architecture solves a certain class of problems perfectly. But not every project should use it from the start. There is no single architecture that will fit every use case. A project may evolve to layers but should be also flexible enough to be able to accommodate different approaches. Vertical Slices is one possible way to start.&lt;/p&gt;
+</content:encoded>
+		</item>
 		<item>
 			<title>Structuring Data Access</title>
 			<link>https://pmarinov.xyz/posts/2020-05-03-structuring-data-access</link>
@@ -18,66 +83,66 @@
 &lt;p&gt;Best practices in software development dictate that data storage and retrieval should be treated as an implementation detail. In practice it is easier said than done though - there are endless debates about how much abstraction is needed, whether the Repository Pattern is still relevant and if yes how to implement it, are ORMs good or evil, Micro ORMs and so on.&lt;/p&gt;
 &lt;p&gt;Here are some solutions with their strengths and weaknesses.&lt;/p&gt;
 &lt;h2 id="full-encapsulation"&gt;Full Encapsulation&lt;/h2&gt;
-&lt;p&gt;&amp;quot;Full Encapsulation&amp;quot; is inspired by Uncle Bob's &lt;a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"&gt;Clean Architecture&lt;/a&gt; - have an abstraction with simple data structures going in and out. Internally the data access implementation will map these simple data structures to storage entities which suit best the libraries or frameworks used. In terms of total decoupling from any storage technology this is the best approach. It's strict abstraction gives a lot of flexibility - i.e. a team can work on the data access details or multiple data access implementations can be switched or &lt;a href="https://en.wikipedia.org/wiki/Polyglot_persistence"&gt;Polyglot Persistence&lt;/a&gt; strategy can be utilized. Some implementations guidelines:&lt;/p&gt;
+&lt;p&gt;&amp;quot;Full Encapsulation&amp;quot; is inspired by Uncle Bob's &lt;a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html"&gt;Clean Architecture&lt;/a&gt; - have an abstraction with simple data structures going in and out. Internally the data access implementation will map these simple data structures to storage entities that suit best the libraries or frameworks used. In terms of total decoupling from any storage technology, this is the best approach. Its strict abstraction gives a lot of flexibility - i.e. a team can work on the data access details or multiple data access implementations can be switched or &lt;a href="https://en.wikipedia.org/wiki/Polyglot_persistence"&gt;Polyglot Persistence&lt;/a&gt; strategy can be utilized. Some implementations guidelines:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;p&gt;Organize abstractions and implementations to be in different assemblies (packages, modules) (&lt;a href="https://www.martinfowler.com/eaaCatalog/separatedInterface.html"&gt;Separated interface&lt;/a&gt;). I have often seen both in the same place - from practical point of view this is not a bad thing but if you think about different implementation you will need to depend on all the concrete stuff along with the abstractions.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Organize abstractions and implementations to be in different assemblies (packages, modules) (&lt;a href="https://www.martinfowler.com/eaaCatalog/separatedInterface.html"&gt;Separated interface&lt;/a&gt;). I have often seen both in the same place - from a practical point of view this is not a bad thing but if you think about different implementation you will need to depend on all the concrete stuff along with the abstractions.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Prefer persistence ignorant abstractions (i.e. do not expose a &lt;code&gt;Save()&lt;/code&gt; method) - each is atomic operation by itself. It is possible to have multiple abstractions to act as atomic action by introducing a variation of &lt;a href="https://www.martinfowler.com/eaaCatalog/unitOfWork.html"&gt;Unit Of Work&lt;/a&gt;. Personally I will not go this way since it introduces significant amount of complexity - individual abstractions will loose their autonomy and probably will have implicit dependencies, additional authority (the Unit of Work) should be managed and ultimately it will complicate usage from consumer perspective.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Prefer persistence ignorant abstractions (i.e. do not expose a &lt;code&gt;Save()&lt;/code&gt; method) - each is an atomic operation by itself. It is possible to have multiple abstractions to act as an atomic action by introducing a variation of &lt;a href="https://www.martinfowler.com/eaaCatalog/unitOfWork.html"&gt;Unit Of Work&lt;/a&gt;. I will not go this way since it introduces a significant amount of complexity - individual abstractions will lose their autonomy and probably will have implicit dependencies, additional authority (the Unit of Work) should be managed and ultimately it will complicate usage from a consumer perspective.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Consider some form of &lt;a href="https://en.wikipedia.org/wiki/Specification_pattern"&gt;Specification&lt;/a&gt; for retrieving data. It does not have to be a strict implementation of the pattern, rather it's intent is to provide a way for declaring some aspect of the data we are interested in. This will simply allow for grouping similar data access patterns together i.e. if we have orders we can specify time range, customer, product, etc. I would not go too far with this trying to define every possible case. Instead when complexity grows beyond certain point I would split in different abstractions i.e. customer's orders, product's orders, etc. - each having appropriate &amp;quot;specification&amp;quot;.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Consider some form of &lt;a href="https://en.wikipedia.org/wiki/Specification_pattern"&gt;Specification&lt;/a&gt; for retrieving data. It does not have to be a strict implementation of the pattern, rather it's intent is to provide a way for declaring some aspect of the data we are interested in. This will simply allow for grouping similar data access patterns together i.e. if we have orders we can specify a time range, customer, product, etc. I would not go too far with this trying to define every possible case. Instead, when complexity grows beyond a certain point I would split in different abstractions i.e. customer's orders, product's orders, etc. - each having appropriate &amp;quot;specification&amp;quot;.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;There is no need the abstraction to be about a single entity - it can represent a series of actions serving specific business case, i.e. storing related data in multiple database tables or pulling data from multiple sources to generate a report.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;There is no need for the abstraction to be about a single entity - it can represent a series of actions serving specific business case, i.e. storing related data in multiple database tables or pulling data from multiple sources to generate a report.&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;p&gt;Prefer having a single public method. This will keep the focus on single functionality and make it simple to use.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Sometimes having abstraction for input and output data may be an overkill - than &lt;a href="https://en.wikipedia.org/wiki/Data_transfer_object"&gt;DTOs&lt;/a&gt; can be used instead. In both cases I would not add any behavior to them.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Sometimes having abstraction for input and output data may be overkill - than &lt;a href="https://en.wikipedia.org/wiki/Data_transfer_object"&gt;DTOs&lt;/a&gt; can be used instead. In both cases, I would not add any behavior to them.&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Working on the data access in this setup is absolute joy - being shielded from other parts of the system gives you freedom. You can use whatever libraries/frameworks, technologies and data sources you need. This is the place where choice actually matters - you will choose a technology/framework/library because you'll pit to use it's unique features. At the same time the &lt;a href="https://en.wikipedia.org/wiki/Leaky_abstraction"&gt;&amp;quot;leakiness&amp;quot;&lt;/a&gt; of the abstraction can be minimal. Testing strategy is also clear - integration tests for the implementation and mocks for unit tests.&lt;/p&gt;
-&lt;p&gt;Unfortunately such strict abstraction also has it's downsides:&lt;/p&gt;
+&lt;p&gt;Working on the data access in this setup is an absolute joy - being shielded from other parts of the system gives you freedom. You can use whatever libraries/frameworks, technologies, and data sources you need. This is the place where choice actually matters - you will choose a technology/framework/library because you'll put to use its unique features. At the same time, the &lt;a href="https://en.wikipedia.org/wiki/Leaky_abstraction"&gt;&amp;quot;leakiness&amp;quot;&lt;/a&gt; of the abstraction can be minimal. The testing strategy is also clear - integration tests for the implementation and mocks for unit tests.&lt;/p&gt;
+&lt;p&gt;Unfortunately, such strict abstraction also has its downsides:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;p&gt;The number of abstractions, implementations and mappings will grow in time since usually each business case will become to have it's own unique requirements. Striking the balance between reusability and simplicity may become very tricky and hard to recognize.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;The number of abstractions, implementations, and mappings will grow in time since usually, each business case will become to have its unique requirements. Striking the balance between reusability and simplicity may become very tricky and hard to recognize.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;A business case will become &amp;quot;stretched&amp;quot; through layers which may lead to having hard time investigating issues or trying to get the &amp;quot;big picture&amp;quot;. (Which is true for each layered system btw.)&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;A business case will become &amp;quot;stretched&amp;quot; through layers which may lead to having a hard time investigating issues or trying to get the &amp;quot;big picture&amp;quot;. (Which is true for each layered system btw.)&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;The tradeoff for encapsulation is mapping - not only mapping the defined contract in and out the data access but also the consumer will have to do the same to it's own representation. This truly shines when storage model differs drastically from business models but when they are alike it becomes a burden since there is little benefit to be seen.
-I have observed a few times that in early stages of system implementation domain and storage entities are 1:1 thus mapping only gets in the way and gets rejected because it &amp;quot;slows down the work&amp;quot;. It is only after the system goes live and becomes successful when subtle domain problems have to be solved - then domain model starts to deviate from the storage model.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;The tradeoff for encapsulation is mapping - not only mapping the defined contract in and out the data access but also the consumer will have to do the same to its own representation. This truly shines when storage model differs drastically from business models but when they are alike it becomes a burden since there is little benefit to be seen.
+I have observed a few times that in the early stages of system implementation domain and storage entities are 1:1 thus mapping only gets in the way and gets rejected because it &amp;quot;slows down the work&amp;quot;. It is only after the system goes live and becomes successful when subtle domain problems have to be solved - then the domain model starts to deviate from the storage model.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;If the system is mostly &lt;a href="https://en.wikipedia.org/wiki/Create,_read,_update_and_delete"&gt;CRUD&lt;/a&gt;-ish this can turn to annoyance very quickly - imo it is even not applicable from practical point of view in such case.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;If the system is mostly &lt;a href="https://en.wikipedia.org/wiki/Create,_read,_update_and_delete"&gt;CRUD&lt;/a&gt;-ish this can turn to annoyance very quickly - it is even not applicable from a practical point of view in such a case.&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;So what if &amp;quot;Full Encapsulation&amp;quot; does not work for you - maybe your system won't benefit from it or maybe you are working in a context of microservice where deliberately reducing the levels of indirection?&lt;/p&gt;
 &lt;h2 id="orm-without-abstraction"&gt;ORM Without Abstraction&lt;/h2&gt;
-&lt;p&gt;Let's suppose data access is mostly about talking to a database. Then using &lt;a href="https://en.wikipedia.org/wiki/Object-relational_mapping"&gt;ORM&lt;/a&gt; framework makes sense in most cases. The big question here is whether putting an abstraction layer over another abstraction is necessary? The ORM will probably already implement the patterns you need like &lt;a href="https://www.martinfowler.com/eaaCatalog/identityMap.html"&gt;Identity Map&lt;/a&gt;, Unit Of Work, Specification, etc. and building abstraction over it will probably mimic the framework of choice. On the other hand letting a dependency on a framework deeply in domain implementation is not a light decision to take. It is definitely worth thinking it through.&lt;/p&gt;
-&lt;p&gt;Personally I will byte the bullet and use the ORM directly without trying to abstract it. In this way I will be able to use it to full extent without restricting myself to abstraction of common ORM features. I will still try to keep data access separate from business logic as much as possible. I can take comfort in the fact that I have an abstraction for the popular relational databases out there (if I ever need to switch). Databases and their supporting technologies have long lifecycles (compared to frontend ones for example). Most of them have reached maturity and will stay around for the foreseeable future.&lt;/p&gt;
-&lt;p&gt;Testing strategy is not so clear in this case. I will mock the ORM for unit tests and try to extract business logic so it can be tested separately. Some will also unit test data access by making the ORM work with in-memory data set - personally I don't think there is any value in it because there is too much difference with the real thing. Integration tests for the data access are the way to go, though if there is a lot of mixing with business logic there no clear cut what each test should cover. Some will argue that data access is also business logic but I guess it depends on the point of view.&lt;/p&gt;
-&lt;p&gt;There are cases when this will not be possible though - company policies, strong opinions or something already in place.&lt;/p&gt;
+&lt;p&gt;Let's suppose data access is mostly about talking to a database. Then using &lt;a href="https://en.wikipedia.org/wiki/Object-relational_mapping"&gt;ORM&lt;/a&gt; framework makes sense in most cases. The big question here is whether putting an abstraction layer over another abstraction is necessary? The ORM will probably already implement the patterns you need like &lt;a href="https://www.martinfowler.com/eaaCatalog/identityMap.html"&gt;Identity Map&lt;/a&gt;, Unit Of Work, Specification, etc. and building abstraction over it will probably mimic the framework of choice. On the other hand, letting a dependency on a framework deeply in domain implementation is not a light decision to take. It is definitely worth thinking it through.&lt;/p&gt;
+&lt;p&gt;Personally, I will bite the bullet and use the ORM directly without trying to abstract it. In this way, I will be able to use it to the full extent without restricting myself to an abstraction of common ORM features. I will still try to keep data access separate from business logic as much as possible. I can take comfort in the fact that I have an abstraction for the popular relational databases out there (if I ever need to switch). Databases and their supporting technologies have long lifecycles (compared to frontend ones for example). Most of them have reached maturity and will stay around for the foreseeable future.&lt;/p&gt;
+&lt;p&gt;The testing strategy is not so clear in this case. I will mock the ORM for unit tests and try to extract business logic so it can be tested separately. Some will also unit test data access by making the ORM work with in-memory data set - I don't think there is any value in it because there is too much difference with the real thing. Integration tests for the data access are the way to go, though if there is a lot of mixing with business logic there no clear cut what each test should cover. Some will argue that data access is also business logic but I guess it depends on the point of view.&lt;/p&gt;
+&lt;p&gt;There are cases when this will not be possible - company policies, strong opinions, or something already in place.&lt;/p&gt;
 &lt;h2 id="repository-pattern"&gt;Repository Pattern&lt;/h2&gt;
-&lt;p&gt;The &lt;a href="https://www.martinfowler.com/eaaCatalog/repository.html"&gt;Repository Pattern&lt;/a&gt; is the most popular approach for abstracting data access. It is also the most controversial. In my opinion its flaw is that it tries to oversimplify data access by pretending it is an in-memory collection. I often dislike that it is built around single entity and depending on implementation can enforce same interface for all entities.&lt;/p&gt;
+&lt;p&gt;The &lt;a href="https://www.martinfowler.com/eaaCatalog/repository.html"&gt;Repository Pattern&lt;/a&gt; is the most popular approach for abstracting data access. It is also the most controversial. In my opinion, its flaw is that it tries to oversimplify data access by pretending it is an in-memory collection. I often dislike that it is built around a single entity and depending on implementation can enforce the same interface for all entities.&lt;/p&gt;
 &lt;p&gt;There are some nuances in implementations worth noting:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;p&gt;Usually the Repository will be accompanied by Unit of Work and Specification implementations.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Usually, the Repository will be accompanied by Unit of Work and Specification implementations.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Persistence ignorance vs persistence awareness: basically the choice whether the consumer does not care about persistence details and will let infrastructure deal with saving, transactions handling, etc. or the consumer will have to explicitly manage them (i.e. call &lt;code&gt;Save()&lt;/code&gt; method).&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Persistence ignorance vs persistence awareness: basically the choice whether the consumer does not care about persistence details and will let infrastructure deal with saving, transaction handling, etc. or the consumer will have to explicitly manage them (i.e. call &lt;code&gt;Save()&lt;/code&gt; method).&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Level of abstraction when using ORM: the promise of ORM is that it will let you persist your business/domain objects in database seamlessly. In practice this is not happening - business objects are now &amp;quot;serving two masters&amp;quot; and they have to comply with the rules of the ORM which in turn can contradict the domain goals (mainly structuring and encapsulation). Another problem is that ORM abstractions are &amp;quot;leaky&amp;quot;. An example from &lt;a href="https://docs.microsoft.com/en-us/ef"&gt;Entity Framework&lt;/a&gt; - the concept navigation property. You never know whether it was eagerly loaded and there is no data, it is not loaded and you have to do it explicitly or it will be lazy loaded given lazy loading is enabled. And how to translate &lt;code&gt;.Include()&lt;/code&gt; as a meaningful domain concept? Another example is the &lt;code&gt;.AsNoTracking()&lt;/code&gt; - how can your domain know that an entity is obtained in a special way so that changes to it will not be persisted? One solution to this is to have separate business objects from database entities and provide mapping between them (or even introduce intermediary DTOs). This will make the domain &amp;quot;pure&amp;quot; but unfortunately it adds additional complexity and as described in &amp;quot;Full Encapsulation&amp;quot; it can be quite a burden for simple cases.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Level of abstraction when using ORM: the promise of ORM is that it will let you persist your business/domain objects in the database seamlessly. In practice this is not happening - business objects are now &amp;quot;serving two masters&amp;quot; and they have to comply with the rules of the ORM which in turn can contradict the domain goals (mainly structuring and encapsulation). Another problem is that ORM abstractions are &amp;quot;leaky&amp;quot;. An example from &lt;a href="https://docs.microsoft.com/en-us/ef"&gt;Entity Framework&lt;/a&gt; - the concept navigation property. You never know whether it was eagerly loaded and there is no data, it is not loaded and you have to do it explicitly or it will be lazy loaded given lazy loading is enabled. And how to translate &lt;code&gt;.Include()&lt;/code&gt; as a meaningful domain concept? Another example is &lt;code&gt;.AsNoTracking()&lt;/code&gt; - how can your domain know that an entity is obtained in a special way so that changes to it will not be persisted? One solution to this is to have separate business objects from database entities and provide a mapping between them (or even introduce intermediary DTOs). This will make the domain &amp;quot;pure&amp;quot; but unfortunately, it adds additional complexity and as described in &amp;quot;Full Encapsulation&amp;quot; it can be quite a burden for simple cases.&lt;/p&gt;
 &lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Usually the Repository implementation will cover the most of the cases. For the non-trivial cases (i.e. batch processing, weird queries) I would introduce separate abstractions instead of trying fit everything in the Repository implementation.&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;Usually, the Repository implementation will cover most of the cases. For the non-trivial cases (i.e. batch processing, weird queries) I would introduce separate abstractions instead of trying to fit everything in the Repository implementation.&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 id="generic-repository-implementation"&gt;Generic Repository Implementation&lt;/h3&gt;
-&lt;p&gt;If generic implementation is feasible/possible with the tools at hand I would go for it. Implementation will probably be shaped around the underlying framework since it will probably support generics too. Unit of Work, Specification and a way of defining projections (get only the data that you'll need) are mandatory for successful usage. Usually such implementations are quite compact and will save a lot of coding. Some will argue that this is too much of generalization and it does not convey meaningful domain concepts - I tend to agree with this to some extent.&lt;/p&gt;
+&lt;p&gt;If a generic implementation is feasible/possible with the tools at hand I would go for it. Implementation will probably be shaped around the underlying framework since it will probably support generics too. Unit of Work, Specification and a way of defining projections (get only the data that you'll need) are mandatory for successful usage. Usually, such implementations are quite compact and will save a lot of coding. Some will argue that this is too much of generalization and it does not convey meaningful domain concepts - I tend to agree with this to some extent.&lt;/p&gt;
 &lt;p&gt;I prefer using generic repository with domain services, each service &amp;quot;orchestrating&amp;quot; execution of specific use case (or domain concept). It will build specifications declaring the data it needs, delegate execution to the repository, then use the result to apply business logic. It can also dispatch the execution of complex domain logic to specialized classes.&lt;/p&gt;
-&lt;p&gt;This approach makes very readable and maintainable use case implementations. The declarative nature of specifications leads to service &amp;quot;owning&amp;quot; it's data access. The ability to create and reuse named specifications allows defining of consistent and meaningful definition of queries. Projections give more insight of what data exactly is needed for a particular case.&lt;/p&gt;
-&lt;p&gt;Consideration for testing are pretty much the same as if ORM is used directly. We can go one step further by unit testing the Specifications ensuring we use declare correct input. This will not replace integration test though.&lt;/p&gt;
-&lt;h3 id="non-generic-repository-implementation"&gt;Non Generic Repository Implementation&lt;/h3&gt;
-&lt;p&gt;Non generic repository implementation can become really close to &amp;quot;Full Encapsulation&amp;quot;. Unfortunately the same downsides are valid also. The number of abstractions and implementations will grow in time. I would recommend figuring out some form of Specification (which appears to be recurring theme in this post). Otherwise you'll end up with methods clustered around some entity where each case will have it's own method. I have seen such abstractions with more than 30 methods having absurd names like &lt;code&gt;GetOrdersOverTotalPriceTresholdForPeriodForCustomerForProductIncludingShippingInfoAndInvoiceNumber&lt;/code&gt;. Even worse is a method with more general name having 15 parameters with 12 of them optional. At some point no one will look at them and will just add another method or parameter that he needs leading to massive code duplications.&lt;/p&gt;
-&lt;p&gt;Implemented with care non generic repository can become a good abstraction. Testing is also clear - mocks for repositories and tests for specifications in unit tests, integration tests for implementations.&lt;/p&gt;
+&lt;p&gt;This approach makes very readable and maintainable use case implementations. The declarative nature of specifications leads to service &amp;quot;owning&amp;quot; it's data access. The ability to create and reuse named specifications allows defining consistent and meaningful definition of queries. Projections give more insight into what data exactly is needed for a particular case.&lt;/p&gt;
+&lt;p&gt;Considerations for testing are pretty much the same as if ORM is used directly. We can go one step further by unit testing the Specifications ensuring we use declare correct input. This will not replace integration tests though.&lt;/p&gt;
+&lt;h3 id="non-generic-repository-implementation"&gt;Non-Generic Repository Implementation&lt;/h3&gt;
+&lt;p&gt;Non-generic repository implementation can become really close to &amp;quot;Full Encapsulation&amp;quot;. Unfortunately, the same downsides are valid also. The number of abstractions and implementations will grow in time. I would recommend figuring out some form of Specification (which appears to be a recurring theme in this post). Otherwise, you'll end up with methods clustered around some entity where each case will have its own method. I have seen such abstractions with more than 30 methods having absurd names like &lt;code&gt;GetOrdersOverTotalPriceTresholdForPeriodForCustomerForProductIncludingShippingInfoAndInvoiceNumber&lt;/code&gt;. Even worse is a method with a more general name having 15 parameters with 12 of them optional. At some point no one will look at them and will just add another method or parameter that he needs leading to massive code duplications.&lt;/p&gt;
+&lt;p&gt;Implemented with care non-generic repository can become a good abstraction. Testing is also clear - mocks for repositories and tests for specifications in unit tests, integration tests for implementations.&lt;/p&gt;
 &lt;h2 id="more"&gt;More...&lt;/h2&gt;
 &lt;p&gt;There are more things to be considered for data access, which usually come up along the way:
 batch processing, caching, performance, transactions, compensating actions, concurrency issues, retry policies to name a few. I have not touched upon &lt;a href="https://martinfowler.com/eaaDev/EventSourcing.html"&gt;Event Sourcing&lt;/a&gt; and &lt;a href="https://en.wikipedia.org/wiki/Command%E2%80%93query_separation#Command_query_responsibility_segregation"&gt;CQRS&lt;/a&gt; since I look at them as a bit more specialized solutions to specific problems.&lt;/p&gt;
 &lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;p&gt;If you are more confused now than before reading this post it is probably a good thing. Data access should be an implementation detail but it does not mean it will be easy. The only advice I can give is to take a pragmatic approach, not a dogmatic one. Do what works best for you, your team and the software you build. And if something does not work well - don't be afraid to change it.&lt;/p&gt;
+&lt;p&gt;If you are more confused now than before reading this post it is probably a good thing. Data access should be an implementation detail but it does not mean it will be easy. The only advice I can give is to take a pragmatic approach, not a dogmatic one. Do what works best for you, your team, and the software you build. And if something does not work well - don't be afraid to change it.&lt;/p&gt;
 </content:encoded>
 		</item>
 		<item>
@@ -146,19 +211,19 @@ Then removed the migrations folder from my project and was ready to go.&lt;/p&gt
 		<item>
 			<title>Deleting large amounts of data from MS SQL Server database</title>
 			<link>https://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</link>
-			<description>&lt;p&gt;Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me overcome these obstacles.&lt;/p&gt;</description>
+			<description>&lt;p&gt;Deleting a large number of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me to overcome these obstacles.&lt;/p&gt;</description>
 			<guid>https://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</guid>
 			<pubDate>Thu, 27 Feb 2020 00:00:00 GMT</pubDate>
 			<content:encoded>&lt;!--- # Deleting large amounts of data from MS SQL Server database ---&gt;
-&lt;p&gt;Deleting large amount of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me overcome these obstacles.&lt;/p&gt;
+&lt;p&gt;Deleting a large number of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me to overcome these obstacles.&lt;/p&gt;
 &lt;h2 id="background"&gt;Background&lt;/h2&gt;
-&lt;p&gt;My problem was that in a multi-tenant database a tenant has grown too much - to the point that it had to be moved to it's own database. The plan was to restore a backup of the database and delete all other tenant's data. The database had around 150 tables - for most of them deletions were not a problem - but for around 20 of them more than 10 million rows were to be deleted and for particular 5 tables more than 600 million.&lt;/p&gt;
+&lt;p&gt;My problem was that in a multi-tenant database a tenant has grown too much - to the point that it had to be moved to its own database. The plan was to restore a backup of the database and delete all other tenant's data. The database had around 150 tables - for most deletions were not a problem - but for around 20 of them more than 10 million rows were to be deleted and for particular 5 tables more than 600 million.&lt;/p&gt;
 &lt;h2 id="first-iteration-standard-deletions"&gt;First iteration: Standard deletions&lt;/h2&gt;
-&lt;p&gt;For the first version of the deletion I used standard delete statements similar to:&lt;/p&gt;
+&lt;p&gt;For the first version of the deletion, I used standard delete statements similar to:&lt;/p&gt;
 &lt;pre&gt;&lt;code class="language-sql"&gt;DELETE x FROM a_table x JOIN &amp;#64;TenantsToDelete t ON t.Id=x.TenantId; 
 &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;It worked fine on a small data set and was useful to confirm the deletion order and flush out some bad data and design oddities. Also it has no problem for few thousand to even tens of thousands of rows so it worked fine for the majority of the cases.&lt;br /&gt;
-Where millions of rows were to be deleted it was taking long time and transaction log was growing rapidly. The full deletion script actually never ran to completion on production-grade data.&lt;/p&gt;
+&lt;p&gt;It worked fine on a small data set and was useful to confirm the deletion order and flush out some bad data and design oddities. Also, it has no problem for a few thousand to even tens of thousands of rows so it worked fine for the majority of the cases.&lt;br /&gt;
+Where millions of rows were to be deleted it was taking a long time and transaction log was growing rapidly. The full deletion script actually never ran to completion on production-grade data.&lt;/p&gt;
 &lt;h2 id="second-iteration-batched-deletions"&gt;Second iteration: Batched deletions&lt;/h2&gt;
 &lt;p&gt;For the large tables I tried batched deletes similar to:&lt;/p&gt;
 &lt;pre&gt;&lt;code class="language-sql"&gt;DECLARE &amp;#64;batch_size INT=5000;
@@ -166,31 +231,31 @@ delete_top:
   DELETE TOP(&amp;#64;batch_size) x FROM a_table x JOIN &amp;#64;TenantsToDelete t ON t.Id=x.TenantId;
   IF &amp;#64;batch_size = &amp;#64;&amp;#64;ROWCOUNT GOTO delete_top;
 &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;This version of the script was able to complete deletion of a single small-sized tenant for around 30 minutes, for a large one it took more than 15 hours - and I needed to remove around 40 of them. It was still no good.&lt;/p&gt;
+&lt;p&gt;This version of the script was able to complete the deletion of a single small-sized tenant for around 30 minutes, for a large one it took more than 15 hours - and I needed to remove around 40 of them. It was still no good.&lt;/p&gt;
 &lt;h2 id="third-iteration-replace-delete-with-insert"&gt;Third iteration: Replace DELETE with INSERT&lt;/h2&gt;
 &lt;p&gt;So &lt;code&gt;DELETE&lt;/code&gt; is slow and there is no much room for improvement. There is no &lt;em&gt;&amp;quot;bulk delete&amp;quot;&lt;/em&gt; kind of operation in MS SQL Server to boost the performance and I was not in a position to use &lt;code&gt;TRUNCATE&lt;/code&gt; or &lt;code&gt;DROP TABLE&lt;/code&gt; since I needed to preserve part of the data.&lt;/p&gt;
-&lt;p&gt;While searching for solution I found this article about optimizing loading of data and the impact of minimally logged operations on I/O: &lt;a href="https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2008/dd425070(v=sql.100)?redirectedfrom=MSDN"&gt;The Data Loading Performance Guide&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;In essence we can insert data fast (with minimal logging) when these conditions are met:&lt;/p&gt;
+&lt;p&gt;While searching for a solution I found this article about optimizing the loading of data and the impact of minimally logged operations on I/O: &lt;a href="https://docs.microsoft.com/en-us/previous-versions/sql/sql-server-2008/dd425070(v=sql.100)?redirectedfrom=MSDN"&gt;The Data Loading Performance Guide&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;In essence, we can insert data fast (with minimal logging) when these conditions are met:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;database is in &lt;code&gt;SIMPLE&lt;/code&gt; or &lt;code&gt;BULK_LOGGED&lt;/code&gt; recovery mode,&lt;/li&gt;
-&lt;li&gt;target table is a &lt;em&gt;heap table&lt;/em&gt; (without clustered index),&lt;/li&gt;
+&lt;li&gt;the database is in &lt;code&gt;SIMPLE&lt;/code&gt; or &lt;code&gt;BULK_LOGGED&lt;/code&gt; recovery mode,&lt;/li&gt;
+&lt;li&gt;the target table is a &lt;em&gt;heap table&lt;/em&gt; (without a clustered index),&lt;/li&gt;
 &lt;li&gt;a &lt;code&gt;WITH (TABLOCK)&lt;/code&gt; hint is used with the insert (allows exclusive lock on the target table).&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;There is additional performance boost using the latter in SQL Server 2016 and higher - &lt;code&gt;INSERT...SELECT WITH (TABLOCK)&lt;/code&gt; may use parallel inserts.&lt;/p&gt;
+&lt;p&gt;There is an additional performance boost using the latter in SQL Server 2016 and higher - &lt;code&gt;INSERT...SELECT WITH (TABLOCK)&lt;/code&gt; may use parallel inserts.&lt;/p&gt;
 &lt;p&gt;So back to my deletion problem - what if instead of delete I do the following:&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Create a heap table with exactly the same structure as the one I want to delete from&lt;/li&gt;
 &lt;li&gt;Move to the heap table data I want to &lt;strong&gt;keep&lt;/strong&gt; using &lt;code&gt;INSERT...SELECT WITH (TABLOCK)&lt;/code&gt;&lt;/li&gt;
 &lt;li&gt;Drop the original table (metadata-only operation, fast)&lt;/li&gt;
 &lt;li&gt;Rename the heap table to original one's name&lt;/li&gt;
-&lt;li&gt;Create indexes, constraints, references etc.&lt;/li&gt;
+&lt;li&gt;Create indexes, constraints, references, etc.&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;&lt;em&gt;&lt;strong&gt;TL;DR;&lt;/strong&gt;&lt;/em&gt; Yes, it worked and it was way faster without growing the transaction log since all operations were minimally logged.&lt;br /&gt;
-Replacing deletion of my around 30 problematic tables with this technique lead to deletion of everything but a mid-sized tenant data to complete in 15 minutes.&lt;br /&gt;
+Replacing the deletion of my around 30 problematic tables with this technique lead to deletion of everything but a mid-sized tenant data to complete in 15 minutes.&lt;br /&gt;
 Deletion of everything but the largest tenant (moving the most data) completed in 1 hour.&lt;/p&gt;
 &lt;h3 id="generating-the-sql"&gt;Generating the SQL&lt;/h3&gt;
-&lt;p&gt;Although I was quite happy with the performance, there was another problem - scripting the heap tables, moving the data and re-creating the indexes by hand is tedious and error prone (imagine doing it for 30 tables).&lt;/p&gt;
-&lt;p&gt;SQL Server Management Studio has a lot of scripting capabilities and fortunately they are available via the &lt;a href="https://docs.microsoft.com/en-us/sql/relational-databases/server-management-objects-smo/sql-server-management-objects-smo-programming-guide?view=sql-server-ver15"&gt;SQL Management Objects&lt;/a&gt; (SMO). It is a set of .NET Framework assemblies meaning that they can be used from PowerShell also.&lt;/p&gt;
+&lt;p&gt;Although I was quite happy with the performance, there was another problem - scripting the heap tables, moving the data, and re-creating the indexes by hand is tedious and error-prone (imagine doing it for 30 tables).&lt;/p&gt;
+&lt;p&gt;SQL Server Management Studio has a lot of scripting capabilities and fortunately, they are available via the &lt;a href="https://docs.microsoft.com/en-us/sql/relational-databases/server-management-objects-smo/sql-server-management-objects-smo-programming-guide?view=sql-server-ver15"&gt;SQL Management Objects&lt;/a&gt; (SMO). It is a set of .NET Framework assemblies meaning that they can be used from PowerShell also.&lt;/p&gt;
 &lt;p&gt;Loading the assemblies and creating &lt;code&gt;Microsoft.SqlServer.Management.Smo.Server&lt;/code&gt; instance is the first step:&lt;/p&gt;
 &lt;pre&gt;&lt;code class="language-powershell"&gt;[System.Reflection.Assembly]::LoadWithPartialName(&amp;quot;Microsoft.SqlServer.Smo&amp;quot;)
 [System.Reflection.Assembly]::LoadWithPartialName(&amp;quot;Microsoft.SqlServer.ConnectionInfo&amp;quot;)
@@ -281,15 +346,15 @@ foreach($foreignKey in $inboundForeignKeys)
     $scripter.Script($key)
 }
 &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;These are the most important the pieces I needed to generate the SQL.&lt;/p&gt;
-&lt;p&gt;In practice I turned the initial deletion SQL script into a kind of template containing the standard deletion statements and occasionally a palceholder with the table name and where clause defining the data to be kept. Then a PowerShell script will read the template and replace the placeholders with SQL statements generated using the steps described above.&lt;/p&gt;
+&lt;p&gt;These are the most important pieces I needed to generate the SQL.&lt;/p&gt;
+&lt;p&gt;In practice, I turned the initial deletion SQL script into a kind of template containing the standard deletion statements and occasionally a placeholder with the table name and where clause defining the data to be kept. Then a PowerShell script will read the template and replace the placeholders with SQL statements generated using the steps described above.&lt;/p&gt;
 &lt;p&gt;Having automated SQL script generation based on the actual metadata has two main advantages:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;removes the repetitive (and boring) manual work&lt;/li&gt;
-&lt;li&gt;when the schema changes (e.g. a table is added or altered, column is changed or dropped, index is created, etc.) the SQL script can be easily generated again&lt;/li&gt;
+&lt;li&gt;when the schema changes (e.g. a table is added or altered, a column is changed or dropped, an index is created, etc.) the SQL script can be easily generated again&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;p&gt;Replacing a regular SQL deletes with inserting in heap table and dropping the original one has achieved a satisfying performance boost. It is a combination of SQL Server's data loading capabilities and minimally logged operations. In my case it worked good since I needed to keep (move) 20-30% of the table's data.&lt;/p&gt;
+&lt;p&gt;Replacing regular SQL deletes with inserting in heap table and dropping the original one has achieved a satisfying performance boost. It is a combination of SQL Server's data loading capabilities and minimally logged operations. In my case, it worked well since I needed to keep (move) 20-30% of the table's data.&lt;/p&gt;
 &lt;p&gt;Implementation is more complex than regular deletes so an automated SQL script generation comes handy.&lt;/p&gt;
 &lt;p&gt;The downside of the solution is it's complexity so I would recommend it only as a last resort.&lt;/p&gt;
 </content:encoded>
