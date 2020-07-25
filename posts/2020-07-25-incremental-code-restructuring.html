@@ -5,7 +5,7 @@
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 
-        <title>Petar Marinov</title>
+        <title>Petar Marinov - Incremental Code Restructuring</title>
         <meta name="description" content="/dev/shared" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0">        
 
@@ -28,9 +28,9 @@
         <meta name="msapplication-tooltip" content="Petar Marinov" />
         <meta name="msapplication-starturl" content="/" />
 
-        <meta property="og:title" content="Petar Marinov" />
+        <meta property="og:title" content="Petar Marinov - Incremental Code Restructuring" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://pmarinov.xyz/" />
+        <meta property="og:url" content="https://pmarinov.xyz/posts/2020-07-25-incremental-code-restructuring" />
         <!-- TODO: More social graph meta tags -->
 
         
@@ -73,9 +73,15 @@
                                 <div class="row">
                                         <div class="col-md-12">
 
-    <div class="site-heading">
-        <h1>/dev/shared</h1>
-    </div>
+    
+<div class="post-heading">
+    <h1>Incremental Code Restructuring</h1>
+    <div class="meta">        
+Published on 25 July 2020<br>    </div>
+        <div class="tags">
+                    <a role="button" href="/tags/General" class="btn btn-default btn-xs">General</a>
+        </div>     
+</div>
                                         </div>
                                 </div>
                         </div>
@@ -86,81 +92,57 @@
                         <div class="row">
                                 <div id="content" class="col-md-12">
                                         
-<div class="row">
-    <div class="col-sm-8 right-border">
-                <div class="post-preview">
-                    <a href="/posts/2020-07-25-incremental-code-restructuring">
-                        <h2 class="post-title">Incremental Code Restructuring</h2>
-                    </a>
-                    <p class="post-meta">Posted on 25 July 2020</p>
-<p>Feature Switch and Branch by Abstraction are techniques usually mentioned in the context of Trunk Based Development. Nevertheless, when used together, they become a powerful tool for changing existing code.</p>                </div>       
-                    <hr /> 
-                <div class="post-preview">
-                    <a href="/posts/2020-05-25-layers-and-features">
-                        <h2 class="post-title">Layers and Features</h2>
-                    </a>
-                    <p class="post-meta">Posted on 25 May 2020</p>
-<p>Layered Architecture is a well known and proven approach when developing software. But should it always be the default choice?</p>                </div>       
-                    <hr /> 
-                <div class="post-preview">
-                    <a href="/posts/2020-05-03-structuring-data-access">
-                        <h2 class="post-title">Structuring Data Access</h2>
-                    </a>
-                    <p class="post-meta">Posted on 03 May 2020</p>
-<p>Best practices in software development dictate that data storage and retrieval should be treated as an implementation detail. In practice it is easier said than done though - there are endless debates about how much abstraction is needed, whether the Repository Pattern is still relevant and if yes how to implement it, are ORMs good or evil, Micro ORMs and so on.</p>                </div>       
-                    <hr /> 
-                <div class="post-preview">
-                    <a href="/posts/2020-03-22-breaking-change-in-entity-framework-core-provider-for-postgresql-3">
-                        <h2 class="post-title">Breaking change in Entity Framework Core provider for PostgreSQL 3.0</h2>
-                    </a>
-                    <p class="post-meta">Posted on 22 March 2020</p>
-<p>Beware when upgrading form <code>Npgsql.EntityFrameworkCore.PostgreSQL 2.2</code> and running <code>PostgreSQL 9.6</code> or earlier.</p>                </div>       
-                    <hr /> 
-                <div class="post-preview">
-                    <a href="/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database">
-                        <h2 class="post-title">Deleting large amounts of data from MS SQL Server database</h2>
-                    </a>
-                    <p class="post-meta">Posted on 27 February 2020</p>
-<p>Deleting a large number of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me to overcome these obstacles.</p>                </div>       
-        <ul class="pager">
-            <li class="previous">                
-            </li>
-            <li class="next">
-            </li>
-        </ul>
-    </div>
-    <div class="col-sm-4 sidebar">
-        <hr class="visible-xs-block" />
 
-            <h5>Tags</h5>
-            <div>
-                    <a role="button" href="/tags/General" class="btn btn-default btn-sm"> General (3)</a>
-                    <a role="button" href="/tags/SQL" class="btn btn-default btn-sm"> SQL (1)</a>
-                    <a role="button" href="/tags/PostgreSQL" class="btn btn-default btn-sm"> PostgreSQL (1)</a>
-                    <a role="button" href="/tags/PowerShell" class="btn btn-default btn-sm"> PowerShell (1)</a>
-                    <a role="button" href="/tags/SMO" class="btn btn-default btn-sm"> SMO (1)</a>
-                    <a role="button" href="/tags/EF" class="btn btn-default btn-sm"> EF (1)</a>
-            </div>
-            <ul class="pager">
-                <li class="next">
-                    <a href="/tags">View All Tags &rarr;</a>
-                </li>
-            </ul>
+<p>Feature Switch and Branch by Abstraction are techniques usually mentioned in the context of Trunk Based Development. Nevertheless, when used together, they become a powerful tool for changing existing code.</p>
+<h2 id="background">Background</h2>
+<p>I wager every successful software that has been growing rapidly for some years has one of those: a component that has too many responsibilities and accidentally coupling various pieces of the system depending on it. In my case, it was an important piece of code that was not designed to be unit-testable (therefore had no single unit test) and was quite complicated on top of it. To do an in-place refactoring we had to first create &quot;seams&quot; so it can be covered with unit tests - a risky affair. So instead of refactoring, we decided to extract functionalities that don't belong to it by re-implementing them.</p>
+<h2 id="feature-switch">Feature Switch</h2>
+<p>The first step was to introduce a <a href="https://en.wikipedia.org/wiki/Feature_toggle">Feature Switch</a> functionality in our system. I was looking for the simplest thing that will do the job so I ended up with a configuration file values. This means that feature switch configuration is loaded up once at startup and can be changed only with a restart. The approach was good enough - to change a feature switch we had to change the value in our deployment system where we can manage values per environment and redeploy.</p>
+<p>That said there is no need to roll your feature switch implementation - there are plenty of options both open source and commercial.</p>
+<p><em>Note: I do a distinction between feature switches and system settings. Although similar, they represent different concepts: feature switches are temporary and preferably short-lived constructs, whether system settings represent multiple different valid behaviors of the system.</em></p>
+<h2 id="branch-by-abstraction">Branch by Abstraction</h2>
+<p>Having feature switches in place it was easy to apply <a href="https://www.martinfowler.com/bliki/BranchByAbstraction.html">Branch by Abstraction</a> technique.</p>
+<p><img src="images/incremental-code-restructuring/feature-switch.svg" class="img-fluid" alt="branch by abstraction" /></p>
+<p>Already having an interface we introduced second implementation and a &quot;main&quot; feature switch - based on it we configured our IoC container.</p>
+<h2 id="introduce-new-implementation">Introduce New Implementation</h2>
+<p>The new implementation was nothing but a proxy to the original implementation, dispatching all calls to it. Next, we singled out a functionality we wanted to extract and introduced a specific feature switch to control dispatching the calls to the original or new implementation.</p>
+<p><img src="images/incremental-code-restructuring/new-implementation.svg" class="img-fluid" alt="branch by abstraction" /></p>
+<p>This turned the proxy into an adapter translating the original input and output to the new one. It allowed us to work on the new implementation in isolation without changing the original. The client code that was using the original interface was oblivious that the implementation was different. The feature switch allowed us to gradually roll it through QA, staging, and finally live environments.</p>
+<h2 id="transition-to-new-implementation-and-clean-up">Transition to New Implementation and Clean Up</h2>
+<p>The new implementation was fully covered by unit tests and necessary integration tests. After using it for some time in live environments without issues we were quite confident that it had the same behavior and does not introduce regressions. It was time for the final step.</p>
+<p><img src="images/incremental-code-restructuring/transition.svg" class="img-fluid" alt="transition to new implementation" /></p>
+<p>We removed the methods from the original interface and their corresponding implementation and replaced usages with the new implementation. Also removed the feature switch related to it. Note that this is a breaking change that brings some risk and should be executed with care. Since the new interface and implementation were focused on single responsibility the dependent components were few.</p>
+<p>The &quot;main&quot; feature switch remained in place for the next piece of work - we will repeat the same cycle for the remaining features that should be extracted from the original implementation.</p>
+<h2 id="fun-fact">Fun Fact</h2>
+<p>This technique is well known but does not have a distinctive name. Sometimes I refer to it as &quot;Non-Destructive Refactoring&quot; which is true to some extent. For some reason, it sells better to management than &quot;Branch By Abstraction&quot; when you need to convince them it should be done. &quot;Incremental code replacement&quot; is more accurate, but the technique itself is quite simple, and all these names make it sound somewhat more complicated.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>By using Feature Switch and Branch by Abstraction techniques we achieved smooth transition and we were confident that we can switch implementations along the way only with a configuration change. We achieved the goal to have comprehensive unit and integration tests providing a safety net for future development and to remove a lot of accidental complexity accumulated for years.</p>
 
-            <hr />
-            <h5>Older Posts</h5>
-            <ul class="list-unstyled">
-            </ul>
-                <ul class="pager">
-                    <li class="next">
-                        <a href="/posts">Archive &rarr;</a>
-                    </li>
-                </ul>
 
-        
-    </div> 
-</div>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'pmarinov';
+    var disqus_identifier = '2020-07-25-incremental-code-restructuring';
+    var disqus_title = 'Incremental Code Restructuring';
+    var disqus_url = 'https://pmarinov.xyz/posts/2020-07-25-incremental-code-restructuring';
 
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+    
+    (function () {
+        var s = document.createElement('script'); s.async = true;
+        s.type = 'text/javascript';
+        s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+        (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+    }());
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
                                 </div>
                         </div>
                 </div>

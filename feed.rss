@@ -5,8 +5,40 @@
 		<link>https://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2020</copyright>
-		<pubDate>Mon, 25 May 2020 18:05:08 GMT</pubDate>
-		<lastBuildDate>Mon, 25 May 2020 18:05:08 GMT</lastBuildDate>
+		<pubDate>Sat, 25 Jul 2020 10:04:55 GMT</pubDate>
+		<lastBuildDate>Sat, 25 Jul 2020 10:04:55 GMT</lastBuildDate>
+		<item>
+			<title>Incremental Code Restructuring</title>
+			<link>https://pmarinov.xyz/posts/2020-07-25-incremental-code-restructuring</link>
+			<description>&lt;p&gt;Feature Switch and Branch by Abstraction are techniques usually mentioned in the context of Trunk Based Development. Nevertheless, when used together, they become a powerful tool for changing existing code.&lt;/p&gt;</description>
+			<guid>https://pmarinov.xyz/posts/2020-07-25-incremental-code-restructuring</guid>
+			<pubDate>Sat, 25 Jul 2020 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;Feature Switch and Branch by Abstraction are techniques usually mentioned in the context of Trunk Based Development. Nevertheless, when used together, they become a powerful tool for changing existing code.&lt;/p&gt;
+&lt;h2 id="background"&gt;Background&lt;/h2&gt;
+&lt;p&gt;I wager every successful software that has been growing rapidly for some years has one of those: a component that has too many responsibilities and accidentally coupling various pieces of the system depending on it. In my case, it was an important piece of code that was not designed to be unit-testable (therefore had no single unit test) and was quite complicated on top of it. To do an in-place refactoring we had to first create &amp;quot;seams&amp;quot; so it can be covered with unit tests - a risky affair. So instead of refactoring, we decided to extract functionalities that don't belong to it by re-implementing them.&lt;/p&gt;
+&lt;h2 id="feature-switch"&gt;Feature Switch&lt;/h2&gt;
+&lt;p&gt;The first step was to introduce a &lt;a href="https://en.wikipedia.org/wiki/Feature_toggle"&gt;Feature Switch&lt;/a&gt; functionality in our system. I was looking for the simplest thing that will do the job so I ended up with a configuration file values. This means that feature switch configuration is loaded up once at startup and can be changed only with a restart. The approach was good enough - to change a feature switch we had to change the value in our deployment system where we can manage values per environment and redeploy.&lt;/p&gt;
+&lt;p&gt;That said there is no need to roll your feature switch implementation - there are plenty of options both open source and commercial.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Note: I do a distinction between feature switches and system settings. Although similar, they represent different concepts: feature switches are temporary and preferably short-lived constructs, whether system settings represent multiple different valid behaviors of the system.&lt;/em&gt;&lt;/p&gt;
+&lt;h2 id="branch-by-abstraction"&gt;Branch by Abstraction&lt;/h2&gt;
+&lt;p&gt;Having feature switches in place it was easy to apply &lt;a href="https://www.martinfowler.com/bliki/BranchByAbstraction.html"&gt;Branch by Abstraction&lt;/a&gt; technique.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/incremental-code-restructuring/feature-switch.svg" class="img-fluid" alt="branch by abstraction" /&gt;&lt;/p&gt;
+&lt;p&gt;Already having an interface we introduced second implementation and a &amp;quot;main&amp;quot; feature switch - based on it we configured our IoC container.&lt;/p&gt;
+&lt;h2 id="introduce-new-implementation"&gt;Introduce New Implementation&lt;/h2&gt;
+&lt;p&gt;The new implementation was nothing but a proxy to the original implementation, dispatching all calls to it. Next, we singled out a functionality we wanted to extract and introduced a specific feature switch to control dispatching the calls to the original or new implementation.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/incremental-code-restructuring/new-implementation.svg" class="img-fluid" alt="branch by abstraction" /&gt;&lt;/p&gt;
+&lt;p&gt;This turned the proxy into an adapter translating the original input and output to the new one. It allowed us to work on the new implementation in isolation without changing the original. The client code that was using the original interface was oblivious that the implementation was different. The feature switch allowed us to gradually roll it through QA, staging, and finally live environments.&lt;/p&gt;
+&lt;h2 id="transition-to-new-implementation-and-clean-up"&gt;Transition to New Implementation and Clean Up&lt;/h2&gt;
+&lt;p&gt;The new implementation was fully covered by unit tests and necessary integration tests. After using it for some time in live environments without issues we were quite confident that it had the same behavior and does not introduce regressions. It was time for the final step.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/incremental-code-restructuring/transition.svg" class="img-fluid" alt="transition to new implementation" /&gt;&lt;/p&gt;
+&lt;p&gt;We removed the methods from the original interface and their corresponding implementation and replaced usages with the new implementation. Also removed the feature switch related to it. Note that this is a breaking change that brings some risk and should be executed with care. Since the new interface and implementation were focused on single responsibility the dependent components were few.&lt;/p&gt;
+&lt;p&gt;The &amp;quot;main&amp;quot; feature switch remained in place for the next piece of work - we will repeat the same cycle for the remaining features that should be extracted from the original implementation.&lt;/p&gt;
+&lt;h2 id="fun-fact"&gt;Fun Fact&lt;/h2&gt;
+&lt;p&gt;This technique is well known but does not have a distinctive name. Sometimes I refer to it as &amp;quot;Non-Destructive Refactoring&amp;quot; which is true to some extent. For some reason, it sells better to management than &amp;quot;Branch By Abstraction&amp;quot; when you need to convince them it should be done. &amp;quot;Incremental code replacement&amp;quot; is more accurate, but the technique itself is quite simple, and all these names make it sound somewhat more complicated.&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;By using Feature Switch and Branch by Abstraction techniques we achieved smooth transition and we were confident that we can switch implementations along the way only with a configuration change. We achieved the goal to have comprehensive unit and integration tests providing a safety net for future development and to remove a lot of accidental complexity accumulated for years.&lt;/p&gt;
+</content:encoded>
+		</item>
 		<item>
 			<title>Layers and Features</title>
 			<link>https://pmarinov.xyz/posts/2020-05-25-layers-and-features</link>
