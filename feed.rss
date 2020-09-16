@@ -5,8 +5,217 @@
 		<link>https://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2020</copyright>
-		<pubDate>Sat, 25 Jul 2020 10:04:55 GMT</pubDate>
-		<lastBuildDate>Sat, 25 Jul 2020 10:04:55 GMT</lastBuildDate>
+		<pubDate>Wed, 16 Sep 2020 12:58:43 GMT</pubDate>
+		<lastBuildDate>Wed, 16 Sep 2020 12:58:43 GMT</lastBuildDate>
+		<item>
+			<title>A Case of Decorators with Microsoft DI</title>
+			<link>https://pmarinov.xyz/posts/2020-09-16-a-case-of-decorators-with-microsoft-di</link>
+			<description>&lt;p&gt;Microsoft.Extensions.DependencyInjection implementation does not support decoration or interception out of the box. Here is how I solved this for a specific case.&lt;/p&gt;</description>
+			<guid>https://pmarinov.xyz/posts/2020-09-16-a-case-of-decorators-with-microsoft-di</guid>
+			<pubDate>Wed, 16 Sep 2020 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;Microsoft.Extensions.DependencyInjection implementation does not support decoration or interception out of the box. Here is how I solved this for a specific case.&lt;/p&gt;
+&lt;h2 id="background"&gt;Background&lt;/h2&gt;
+&lt;p&gt;In a project I worked on recently I was using &lt;a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.extensions.dependencyinjection?view=dotnet-plat-ext-3.1"&gt;Microsoft.Extensions.DependencyInjection container&lt;/a&gt;.
+I used a variation of the &lt;a href="https://en.wikipedia.org/wiki/Command_pattern"&gt;Command Pattern&lt;/a&gt; to expose domain logic and I needed to guarantee that every command instance is created and executed in scope, and the scope is then disposed of.&lt;/p&gt;
+&lt;p&gt;I wanted commands to be independent, allowing multiple commands to be executed in parallel, or resolved and executed within &lt;a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-3.1&amp;amp;tabs=visual-studio"&gt;hosted services&lt;/a&gt; or in fire-and-forget scenarios. To illustrate a particular problem: let's say I have two commands depending on EF DbContext, and something depending on both.
+Now if DbContext is scoped then I will get two command instances depending internally on the same DbContext instance and if executed in parallel there will be a problem since &lt;a href="https://docs.microsoft.com/en-us/ef/core/miscellaneous/configuring-dbcontext#avoiding-dbcontext-threading-issues"&gt;DbContext is not thread-safe&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/a-case-of-decorators-with-microsoft-di/shared_dbcontext.svg" class="img-fluid" alt="shared DbContext" /&gt;&lt;/p&gt;
+&lt;p&gt;I could register the DbContext as transient but then I have to be sure that scope is disposed of according to &lt;a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-3.1#general-idisposable-guidelines"&gt;IDisposable guidelines&lt;/a&gt;. It is not a problem if my domain lives in ASP .NET Core application since requests are executed in scope by design.
+For windows services, hosted services, or console applications though the scope should be managed and I did not want this to be a concern in my domain.&lt;/p&gt;
+&lt;p&gt;The &lt;a href="https://en.wikipedia.org/wiki/Decorator_pattern"&gt;Decorator&lt;/a&gt; design pattern seemed like a way to solve it.&lt;/p&gt;
+&lt;h2 id="what-i-wanted"&gt;What I Wanted&lt;/h2&gt;
+&lt;p&gt;I had a generic abstraction similar to:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public interface ICommand&amp;lt;TAction&amp;gt;
+{
+    Task ExecuteAsync(TAction action);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;and a simplified implementation can be:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public class PrintHelloWorld{ }
+
+public class HelloWorld : ICommand&amp;lt;PrintHelloWorld&amp;gt;
+{
+    public async Task ExecuteAsync(PrintHelloWorld action) 
+        =&amp;gt; Console.WriteLine(&amp;quot;Hello World!&amp;quot;);
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I wanted my domain commands to implement &lt;code&gt;ICommand&amp;lt;TAction&amp;gt;&lt;/code&gt; and when used by a consumer, something behind the scene to create a scope, resolve the command, execute it, and dispose of the created scope.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/a-case-of-decorators-with-microsoft-di/decorators.svg" class="img-fluid" alt="decorators" /&gt;&lt;/p&gt;
+&lt;p&gt;I will describe how decoration can be achieved in this case. If you are interested in a more general approach you can jump down to the &lt;a href="#alternatives"&gt;Alternatives&lt;/a&gt; section.&lt;/p&gt;
+&lt;h2 id="implementing-a-decorator-to-control-scope"&gt;Implementing a Decorator to Control scope&lt;/h2&gt;
+&lt;p&gt;So my decorator for controlling scope was something like:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public class ScopedCommand&amp;lt;TAction&amp;gt; : ICommand&amp;lt;TAction&amp;gt;
+{
+    private IServiceScopeFactory _scopeFactory;
+
+    public ScopedCommand(IServiceScopeFactory scopeFactory)
+        =&amp;gt; _scopeFactory = scopeFactory;
+
+    public async Task ExecuteAsync(TAction action)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var command = scope.ServiceProvider.GetRequiredService&amp;lt;ICommand&amp;lt;TAction&amp;gt;&amp;gt;();
+        await command.ExecuteAsync(action);
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Nice and easy so far but when I did the registrations I realized it won't work.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;serviceCollection.AddTransient&amp;lt;ICommand&amp;lt;PrintHelloWorld&amp;gt;, HelloWorld&amp;gt;()
+                 .AddSingleton&amp;lt;ICommand&amp;lt;PrintHelloWorld&amp;gt;, ScopedCommand&amp;lt;PrintHelloWorld&amp;gt;&amp;gt;();
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Since I had two registrations for &lt;code&gt;ICommand&amp;lt;PrintHelloWorld&amp;gt;&lt;/code&gt; the call to &lt;code&gt;GetRequiredService&amp;lt;ICommand&amp;lt;PrintHelloWorld&amp;gt;&amp;gt;()&lt;/code&gt; will always resolve to &lt;code&gt;ScopedCommand&amp;lt;PrintHelloWorld&amp;gt;&lt;/code&gt; (last registered wins), and I can't get the &lt;code&gt;PrintPrintHelloWorld&lt;/code&gt; instance. In fact, the &lt;code&gt;ExecuteAsync()&lt;/code&gt; call ended up in &lt;code&gt;StackOverflowException&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;I could get both instances if I used &lt;code&gt;GetServices()&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;using(var scope = _scopeFactory.CreateScope())
+{
+    var commands = scope.ServiceProvider.GetServices&amp;lt;ICommand&amp;lt;TAction&amp;gt;&amp;gt;() as ICommand&amp;lt;TAction&amp;gt;[];
+    await command[0].ExecuteAsync(action); 
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The first registered is the actual command implementation and the second one is the decorator. This works... almost. What if a consumer of this command requests all  &lt;code&gt;ICommand&amp;lt;PrintHelloWorld&amp;gt;&lt;/code&gt; implementations?&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public HelloWorldPrinter(IEnumerable&amp;lt;ICommand&amp;lt;PrintHelloWorld&amp;gt;&amp;gt; commands)
+{
+    ...
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This is a valid request to the container and it will return both implementations.&lt;/p&gt;
+&lt;p&gt;Yet another problem is what if I had two or more implementations of  &lt;code&gt;ICommand&amp;lt;PrintHelloWorld&amp;gt;&lt;/code&gt; (not taking into account decorators)?&lt;/p&gt;
+&lt;p&gt;To solve the problem I registered the &lt;code&gt;ICommand&amp;lt;TAction&amp;gt;&lt;/code&gt; implementation as itself instead of its interface. But then how &lt;code&gt;ScopedCommand&amp;lt;TAction&amp;gt;&lt;/code&gt; will know which &lt;code&gt;ICommand&amp;lt;TAction&amp;gt;&lt;/code&gt; implementation to resolve?&lt;br /&gt;
+Appears that this information can be passed as generic type argument:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public class ScopedCommand&amp;lt;TAction, TImplementation&amp;gt; : ICommand&amp;lt;TAction&amp;gt; 
+                                                       where TImplementation : ICommand&amp;lt;TAction&amp;gt;
+{
+    private IServiceScopeFactory _scopeFactory;
+
+    public ScopedCommand(IServiceScopeFactory scopeFactory)
+        =&amp;gt; _scopeFactory = scopeFactory;
+
+    public async Task ExecuteAsync(TAction action)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var command = scope.ServiceProvider.GetRequiredService&amp;lt;TImplementation&amp;gt;();
+        await command.ExecuteAsync(action);
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;so now the registration looked like:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;serviceCollection.AddTransient&amp;lt;HelloWorld&amp;gt;()
+                 .AddSingleton&amp;lt;ICommand&amp;lt;PrintHelloWorld&amp;gt;, ScopedCommand&amp;lt;PrintHelloWorld, HelloWorld&amp;gt;);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;and it can be generalized as &lt;code&gt;ServiceCollection&lt;/code&gt; extension method:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public static IServiceCollection AddCommand&amp;lt;TAction, TImplementation&amp;gt;(this IServiceCollection serviceCollection) 
+    where TImplementation : class, ICommand&amp;lt;TAction&amp;gt;
+{
+    return serviceCollection.AddTransient&amp;lt;TImplementation&amp;gt;()
+                            .AddSingleton&amp;lt;ICommand&amp;lt;TAction&amp;gt;, ScopedCommand&amp;lt;TAction, TImplementation&amp;gt;&amp;gt;();
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now I had implementations of &lt;code&gt;ICommand&amp;lt;TAction&amp;gt;&lt;/code&gt; in my domain and using the &lt;code&gt;AddCommand&amp;lt;TAction, TImplementation&amp;gt;()&lt;/code&gt; extension guaranteed me that consumers will actually get &lt;code&gt;ScopedCommand&amp;lt;TAction, TImplementation&amp;gt;&lt;/code&gt; as implementations.&lt;/p&gt;
+&lt;p&gt;This had somewhat of a lazy loading effect: when a consumer gets an implementation it will actually be the &lt;code&gt;ScopedCommand&amp;lt;TAction, TImplementation&amp;gt;&lt;/code&gt; singleton. Only when the  &lt;code&gt;ExecuteAsync(TAction action)&lt;/code&gt; method is called the actual implementation will be created, executed, and disposed of. Consequent calls to &lt;code&gt;ExecuteAsync(TAction action)&lt;/code&gt; will be executed on a new instance.&lt;/p&gt;
+&lt;p&gt;As an example this imaginary implementation will be ok because there will be no implicit dependencies on scoped instances:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public class Processor
+{
+    private IEnumerable&amp;lt;ICommand&amp;lt;ProcessSomeData&amp;gt;&amp;gt; _processors;
+
+    public Processor(IEnumerable&amp;lt;ICommand&amp;lt;ProcessSomeData&amp;gt;&amp;gt; processors)
+        =&amp;gt; _processors = processors;
+
+    public async Task ProcessAsync()
+    {
+        var tasks = _processors.Select(x =&amp;gt; x.ExecuteAsync(new ProcessSomeData()))
+                               .ToArray();
+        await Task.WhenAll(tasks);
+    }
+
+    public void FireAndForget()
+    {
+        foreach(var processor in _processors)
+        {
+            _ = Task.Run(async () =&amp;gt; await processor.ExecuteAsync(new ProcessSomeData()));
+        }
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id="adding-command-decorators"&gt;Adding Command Decorators&lt;/h2&gt;
+&lt;p&gt;Having &lt;code&gt;ScopedCommand&amp;lt;TAction, TImplementation&amp;gt;&lt;/code&gt; in place created an opportunity to add any number of decorators between it and the actual &lt;code&gt;ICommand&amp;lt;TAction&amp;gt;&lt;/code&gt; that is decorated. I introduced a base class for command decorators using method injection (it will be used by &lt;code&gt;ScopedCommand&lt;/code&gt; to wire-up decorators):&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;satisfied my requirements public abstract class CommandDecorator&amp;lt;TAction&amp;gt; : ICommand&amp;lt;TAction&amp;gt;
+ {
+    protected ICommand&amp;lt;TAction&amp;gt; Command { get; private set; }
+    public abstract Task ExecuteAsync(TAction action);
+    public void SetDecoratee(ICommand&amp;lt;TAction&amp;gt; command) =&amp;gt; Command = command;
+ }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;An example decorator can be:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public class SampleHelloWorldDecorator : CommandDecorator&amp;lt;PrintHelloWorld&amp;gt;
+{
+    public override async Task ExecuteAsync(PrintHelloWorld action)
+    {
+        Console.WriteLine(&amp;quot;----------&amp;quot;);
+        await Command.ExecuteAsync(action);
+        Console.WriteLine(&amp;quot;----------&amp;quot;);
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The registration is straight-forward. Once again the trick is not to register the decorator by &lt;code&gt;ICommand&amp;lt;TAction&amp;gt;&lt;/code&gt; interface. An extension method was useful to convey intent:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public static IServiceCollection DecorateCommand&amp;lt;TAction, TImplementation&amp;gt;(this IServiceCollection serviceCollection) 
+    where TImplementation : CommandDecorator&amp;lt;TAction&amp;gt;
+{
+    return serviceCollection.AddTransient&amp;lt;CommandDecorator&amp;lt;TAction&amp;gt;, TImplementation&amp;gt;();
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And finally &lt;code&gt;ScopedDecorator&amp;lt;TAction&amp;gt;&lt;/code&gt; implementation chained all decorators right before execution of the actual command:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public class ScopedCommand&amp;lt;TAction, TImplementation&amp;gt; : ICommand&amp;lt;TAction&amp;gt; 
+                                                       where TImplementation : ICommand&amp;lt;TAction&amp;gt;
+{
+    private IServiceScopeFactory _scopeFactory;
+
+    public ScopedCommand(IServiceScopeFactory scopeFactory)
+        =&amp;gt; _scopeFactory = scopeFactory;
+
+    public async Task ExecuteAsync(TAction action)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var command = scope.ServiceProvider.GetRequiredService&amp;lt;TImplementation&amp;gt;();
+        
+        var decorators = scope.ServiceProvider.GetServices&amp;lt;CommandDecorator&amp;lt;TAction&amp;gt;&amp;gt;() as CommandDecorator&amp;lt;TAction&amp;gt;[];
+        if(decorators?.Length &amp;gt; 0)
+        {
+            decorators[0].SetDecoratee(command);
+            for (int i = 1; i &amp;lt; decorators.Length ; i++)
+            {
+                decorators[i].SetDecoratee(decorators[i - 1]);
+            }
+
+            await decorators[^1].ExecuteAsync(action);
+        }
+        else
+        {
+            await command.ExecuteAsync(action);
+        }
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The order of decorators is determined by the order of registration. Their execution is in reverse order - the last registered will be the first to execute and so on. Have to admit that registration and execution order always makes me stop and think about it.&lt;/p&gt;
+&lt;p&gt;Having for example:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;serviceCollection.AddCommand&amp;lt;PrintHelloWorld, HelloWorld&amp;gt;()
+                 .DecorateCommand&amp;lt;PrintHelloWorld, SampleHelloWorldDecorator&amp;gt;()
+                 .DecorateCommand&amp;lt;PrintHelloWorld, AnotherDecorator&amp;gt;();
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;will have execution order: &lt;code&gt;AnotherDecorator -&amp;gt; SampleHelloWorldDecorator -&amp;gt; HelloWorld&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;This satisfied my requirements. I added additional classes to support another interface I had: &lt;code&gt;IQuery&amp;lt;TAction, TResult&amp;gt;&lt;/code&gt;. The implementation is almost the same with one more generic type argument for the result.&lt;/p&gt;
+&lt;p&gt;This solution is not perfect but worked for me, so I decided to use it without trying to further generalize it. If more sophisticated use cases come up in the future I have the choice of implementing them or scrape the whole thing in favor of something else.&lt;/p&gt;
+&lt;p&gt;&lt;a name="alternatives"&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;h2 id="alternatives"&gt;Alternatives&lt;/h2&gt;
+&lt;p&gt;This solution fits my requirements and is not a general-purpose one. There are some alternatives I found (by the time of writing):&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The first advice is to switch to a different container that supports decorators out of the box.&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/khellang/Scrutor"&gt;Scrutor&lt;/a&gt; provides assembly scanning and decoration extensions for Microsoft.Extensions.DependencyInjection.&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/VikKol/Microsoft.DI.Decorator"&gt;Microsoft.DI.Decorator&lt;/a&gt; provides a simple implementation of Decorators in Microsoft.Extensions.DependencyInjection.&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/lawrence-laz/Decor.NET"&gt;Decor.NET&lt;/a&gt; provides a nice and simple way to execute any code before and after any other method.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Lack of support for decoration by Microsoft.Extensions.DependencyInjection implementation hampers one of the benefits of using a container. Nevertheless, it can be overcome either with a custom implementation suiting your needs or by using a third-party solution.&lt;/p&gt;
+</content:encoded>
+		</item>
 		<item>
 			<title>Incremental Code Restructuring</title>
 			<link>https://pmarinov.xyz/posts/2020-07-25-incremental-code-restructuring</link>

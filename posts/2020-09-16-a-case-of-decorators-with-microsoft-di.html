@@ -1,0 +1,406 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+
+        <title>Petar Marinov - A Case of Decorators with Microsoft DI</title>
+        <meta name="description" content="/dev/shared" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">        
+
+        <link type="application/rss+xml" rel="alternate" title="Petar Marinov" href="/feed.rss" />
+                <link type="application/atom+xml" rel="alternate" title="Petar Marinov" href="/feed.atom" />
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+        <link href="/assets/css/bootstrap.min.css" rel="stylesheet" />
+        <link href="/assets/css/highlight.css" rel="stylesheet">
+        <link href="/assets/css/clean-blog.css" rel="stylesheet" />
+        <link href="/assets/css/master.css" rel="stylesheet" />
+        <link href="/assets/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+        <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+        <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+        <link href="/assets/css/override.css" rel="stylesheet" />
+
+
+        <meta name="application-name" content="Petar Marinov" />
+        <meta name="msapplication-tooltip" content="Petar Marinov" />
+        <meta name="msapplication-starturl" content="/" />
+
+        <meta property="og:title" content="Petar Marinov - A Case of Decorators with Microsoft DI" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://pmarinov.xyz/posts/2020-09-16-a-case-of-decorators-with-microsoft-di" />
+        <!-- TODO: More social graph meta tags -->
+
+        
+
+
+        </head>
+        <body>
+                
+                <!-- Navigation -->
+                <nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+                        <div class="container-fluid">
+                                <!-- Brand and toggle get grouped for better mobile display -->
+                                <div class="navbar-header page-scroll">
+                                        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+                                        <span class="sr-only">Toggle navigation</span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        </button>
+                                        <a class="navbar-brand" href="/">Petar Marinov</a>
+                                </div>
+                        
+                                <!-- Collect the nav links, forms, and other content for toggling -->
+                                <div class="collapse navbar-collapse" id="navbar-collapse">
+                                        <ul class="nav navbar-nav navbar-right">
+                                                        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+ 
+                                        </ul>
+                                </div>
+                                <!-- /.navbar-collapse -->
+                        </div>
+                        <!-- /.container -->
+                </nav>
+                
+                <!-- Page Header -->
+                <header class="intro-header" id="intro-header">
+                        <div class="container">
+                                <div class="row">
+                                        <div class="col-md-12">
+
+    
+<div class="post-heading">
+    <h1>A Case of Decorators with Microsoft DI</h1>
+    <div class="meta">        
+Published on 16 September 2020<br>    </div>
+        <div class="tags">
+                    <a role="button" href="/tags/NET-Core" class="btn btn-default btn-xs">.NET Core</a>
+        </div>     
+</div>
+                                        </div>
+                                </div>
+                        </div>
+                </header>
+                
+                <!-- Main Content -->
+                <div class="container">
+                        <div class="row">
+                                <div id="content" class="col-md-12">
+                                        
+
+<p>Microsoft.Extensions.DependencyInjection implementation does not support decoration or interception out of the box. Here is how I solved this for a specific case.</p>
+<h2 id="background">Background</h2>
+<p>In a project I worked on recently I was using <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.extensions.dependencyinjection?view=dotnet-plat-ext-3.1">Microsoft.Extensions.DependencyInjection container</a>.
+I used a variation of the <a href="https://en.wikipedia.org/wiki/Command_pattern">Command Pattern</a> to expose domain logic and I needed to guarantee that every command instance is created and executed in scope, and the scope is then disposed of.</p>
+<p>I wanted commands to be independent, allowing multiple commands to be executed in parallel, or resolved and executed within <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-3.1&amp;tabs=visual-studio">hosted services</a> or in fire-and-forget scenarios. To illustrate a particular problem: let's say I have two commands depending on EF DbContext, and something depending on both.
+Now if DbContext is scoped then I will get two command instances depending internally on the same DbContext instance and if executed in parallel there will be a problem since <a href="https://docs.microsoft.com/en-us/ef/core/miscellaneous/configuring-dbcontext#avoiding-dbcontext-threading-issues">DbContext is not thread-safe</a>.</p>
+<p><img src="images/a-case-of-decorators-with-microsoft-di/shared_dbcontext.svg" class="img-fluid" alt="shared DbContext" /></p>
+<p>I could register the DbContext as transient but then I have to be sure that scope is disposed of according to <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-3.1#general-idisposable-guidelines">IDisposable guidelines</a>. It is not a problem if my domain lives in ASP .NET Core application since requests are executed in scope by design.
+For windows services, hosted services, or console applications though the scope should be managed and I did not want this to be a concern in my domain.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Decorator_pattern">Decorator</a> design pattern seemed like a way to solve it.</p>
+<h2 id="what-i-wanted">What I Wanted</h2>
+<p>I had a generic abstraction similar to:</p>
+<pre><code class="language-csharp">public interface ICommand&lt;TAction&gt;
+{
+    Task ExecuteAsync(TAction action);
+}
+</code></pre>
+<p>and a simplified implementation can be:</p>
+<pre><code class="language-csharp">public class PrintHelloWorld{ }
+
+public class HelloWorld : ICommand&lt;PrintHelloWorld&gt;
+{
+    public async Task ExecuteAsync(PrintHelloWorld action) 
+        =&gt; Console.WriteLine(&quot;Hello World!&quot;);
+}
+</code></pre>
+<p>I wanted my domain commands to implement <code>ICommand&lt;TAction&gt;</code> and when used by a consumer, something behind the scene to create a scope, resolve the command, execute it, and dispose of the created scope.</p>
+<p><img src="images/a-case-of-decorators-with-microsoft-di/decorators.svg" class="img-fluid" alt="decorators" /></p>
+<p>I will describe how decoration can be achieved in this case. If you are interested in a more general approach you can jump down to the <a href="#alternatives">Alternatives</a> section.</p>
+<h2 id="implementing-a-decorator-to-control-scope">Implementing a Decorator to Control scope</h2>
+<p>So my decorator for controlling scope was something like:</p>
+<pre><code class="language-csharp">public class ScopedCommand&lt;TAction&gt; : ICommand&lt;TAction&gt;
+{
+    private IServiceScopeFactory _scopeFactory;
+
+    public ScopedCommand(IServiceScopeFactory scopeFactory)
+        =&gt; _scopeFactory = scopeFactory;
+
+    public async Task ExecuteAsync(TAction action)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var command = scope.ServiceProvider.GetRequiredService&lt;ICommand&lt;TAction&gt;&gt;();
+        await command.ExecuteAsync(action);
+    }
+}
+</code></pre>
+<p>Nice and easy so far but when I did the registrations I realized it won't work.</p>
+<pre><code class="language-csharp">serviceCollection.AddTransient&lt;ICommand&lt;PrintHelloWorld&gt;, HelloWorld&gt;()
+                 .AddSingleton&lt;ICommand&lt;PrintHelloWorld&gt;, ScopedCommand&lt;PrintHelloWorld&gt;&gt;();
+</code></pre>
+<p>Since I had two registrations for <code>ICommand&lt;PrintHelloWorld&gt;</code> the call to <code>GetRequiredService&lt;ICommand&lt;PrintHelloWorld&gt;&gt;()</code> will always resolve to <code>ScopedCommand&lt;PrintHelloWorld&gt;</code> (last registered wins), and I can't get the <code>PrintPrintHelloWorld</code> instance. In fact, the <code>ExecuteAsync()</code> call ended up in <code>StackOverflowException</code>.</p>
+<p>I could get both instances if I used <code>GetServices()</code>:</p>
+<pre><code class="language-csharp">using(var scope = _scopeFactory.CreateScope())
+{
+    var commands = scope.ServiceProvider.GetServices&lt;ICommand&lt;TAction&gt;&gt;() as ICommand&lt;TAction&gt;[];
+    await command[0].ExecuteAsync(action); 
+}
+</code></pre>
+<p>The first registered is the actual command implementation and the second one is the decorator. This works... almost. What if a consumer of this command requests all  <code>ICommand&lt;PrintHelloWorld&gt;</code> implementations?</p>
+<pre><code class="language-csharp">public HelloWorldPrinter(IEnumerable&lt;ICommand&lt;PrintHelloWorld&gt;&gt; commands)
+{
+    ...
+}
+</code></pre>
+<p>This is a valid request to the container and it will return both implementations.</p>
+<p>Yet another problem is what if I had two or more implementations of  <code>ICommand&lt;PrintHelloWorld&gt;</code> (not taking into account decorators)?</p>
+<p>To solve the problem I registered the <code>ICommand&lt;TAction&gt;</code> implementation as itself instead of its interface. But then how <code>ScopedCommand&lt;TAction&gt;</code> will know which <code>ICommand&lt;TAction&gt;</code> implementation to resolve?<br />
+Appears that this information can be passed as generic type argument:</p>
+<pre><code class="language-csharp">public class ScopedCommand&lt;TAction, TImplementation&gt; : ICommand&lt;TAction&gt; 
+                                                       where TImplementation : ICommand&lt;TAction&gt;
+{
+    private IServiceScopeFactory _scopeFactory;
+
+    public ScopedCommand(IServiceScopeFactory scopeFactory)
+        =&gt; _scopeFactory = scopeFactory;
+
+    public async Task ExecuteAsync(TAction action)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var command = scope.ServiceProvider.GetRequiredService&lt;TImplementation&gt;();
+        await command.ExecuteAsync(action);
+    }
+}
+</code></pre>
+<p>so now the registration looked like:</p>
+<pre><code class="language-csharp">serviceCollection.AddTransient&lt;HelloWorld&gt;()
+                 .AddSingleton&lt;ICommand&lt;PrintHelloWorld&gt;, ScopedCommand&lt;PrintHelloWorld, HelloWorld&gt;);
+</code></pre>
+<p>and it can be generalized as <code>ServiceCollection</code> extension method:</p>
+<pre><code class="language-csharp">public static IServiceCollection AddCommand&lt;TAction, TImplementation&gt;(this IServiceCollection serviceCollection) 
+    where TImplementation : class, ICommand&lt;TAction&gt;
+{
+    return serviceCollection.AddTransient&lt;TImplementation&gt;()
+                            .AddSingleton&lt;ICommand&lt;TAction&gt;, ScopedCommand&lt;TAction, TImplementation&gt;&gt;();
+}
+</code></pre>
+<p>Now I had implementations of <code>ICommand&lt;TAction&gt;</code> in my domain and using the <code>AddCommand&lt;TAction, TImplementation&gt;()</code> extension guaranteed me that consumers will actually get <code>ScopedCommand&lt;TAction, TImplementation&gt;</code> as implementations.</p>
+<p>This had somewhat of a lazy loading effect: when a consumer gets an implementation it will actually be the <code>ScopedCommand&lt;TAction, TImplementation&gt;</code> singleton. Only when the  <code>ExecuteAsync(TAction action)</code> method is called the actual implementation will be created, executed, and disposed of. Consequent calls to <code>ExecuteAsync(TAction action)</code> will be executed on a new instance.</p>
+<p>As an example this imaginary implementation will be ok because there will be no implicit dependencies on scoped instances:</p>
+<pre><code class="language-csharp">public class Processor
+{
+    private IEnumerable&lt;ICommand&lt;ProcessSomeData&gt;&gt; _processors;
+
+    public Processor(IEnumerable&lt;ICommand&lt;ProcessSomeData&gt;&gt; processors)
+        =&gt; _processors = processors;
+
+    public async Task ProcessAsync()
+    {
+        var tasks = _processors.Select(x =&gt; x.ExecuteAsync(new ProcessSomeData()))
+                               .ToArray();
+        await Task.WhenAll(tasks);
+    }
+
+    public void FireAndForget()
+    {
+        foreach(var processor in _processors)
+        {
+            _ = Task.Run(async () =&gt; await processor.ExecuteAsync(new ProcessSomeData()));
+        }
+    }
+}
+</code></pre>
+<h2 id="adding-command-decorators">Adding Command Decorators</h2>
+<p>Having <code>ScopedCommand&lt;TAction, TImplementation&gt;</code> in place created an opportunity to add any number of decorators between it and the actual <code>ICommand&lt;TAction&gt;</code> that is decorated. I introduced a base class for command decorators using method injection (it will be used by <code>ScopedCommand</code> to wire-up decorators):</p>
+<pre><code class="language-csharp">satisfied my requirements public abstract class CommandDecorator&lt;TAction&gt; : ICommand&lt;TAction&gt;
+ {
+    protected ICommand&lt;TAction&gt; Command { get; private set; }
+    public abstract Task ExecuteAsync(TAction action);
+    public void SetDecoratee(ICommand&lt;TAction&gt; command) =&gt; Command = command;
+ }
+</code></pre>
+<p>An example decorator can be:</p>
+<pre><code class="language-csharp">public class SampleHelloWorldDecorator : CommandDecorator&lt;PrintHelloWorld&gt;
+{
+    public override async Task ExecuteAsync(PrintHelloWorld action)
+    {
+        Console.WriteLine(&quot;----------&quot;);
+        await Command.ExecuteAsync(action);
+        Console.WriteLine(&quot;----------&quot;);
+    }
+}
+</code></pre>
+<p>The registration is straight-forward. Once again the trick is not to register the decorator by <code>ICommand&lt;TAction&gt;</code> interface. An extension method was useful to convey intent:</p>
+<pre><code class="language-csharp">public static IServiceCollection DecorateCommand&lt;TAction, TImplementation&gt;(this IServiceCollection serviceCollection) 
+    where TImplementation : CommandDecorator&lt;TAction&gt;
+{
+    return serviceCollection.AddTransient&lt;CommandDecorator&lt;TAction&gt;, TImplementation&gt;();
+}
+</code></pre>
+<p>And finally <code>ScopedDecorator&lt;TAction&gt;</code> implementation chained all decorators right before execution of the actual command:</p>
+<pre><code class="language-csharp">public class ScopedCommand&lt;TAction, TImplementation&gt; : ICommand&lt;TAction&gt; 
+                                                       where TImplementation : ICommand&lt;TAction&gt;
+{
+    private IServiceScopeFactory _scopeFactory;
+
+    public ScopedCommand(IServiceScopeFactory scopeFactory)
+        =&gt; _scopeFactory = scopeFactory;
+
+    public async Task ExecuteAsync(TAction action)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var command = scope.ServiceProvider.GetRequiredService&lt;TImplementation&gt;();
+        
+        var decorators = scope.ServiceProvider.GetServices&lt;CommandDecorator&lt;TAction&gt;&gt;() as CommandDecorator&lt;TAction&gt;[];
+        if(decorators?.Length &gt; 0)
+        {
+            decorators[0].SetDecoratee(command);
+            for (int i = 1; i &lt; decorators.Length ; i++)
+            {
+                decorators[i].SetDecoratee(decorators[i - 1]);
+            }
+
+            await decorators[^1].ExecuteAsync(action);
+        }
+        else
+        {
+            await command.ExecuteAsync(action);
+        }
+    }
+}
+</code></pre>
+<p>The order of decorators is determined by the order of registration. Their execution is in reverse order - the last registered will be the first to execute and so on. Have to admit that registration and execution order always makes me stop and think about it.</p>
+<p>Having for example:</p>
+<pre><code class="language-csharp">serviceCollection.AddCommand&lt;PrintHelloWorld, HelloWorld&gt;()
+                 .DecorateCommand&lt;PrintHelloWorld, SampleHelloWorldDecorator&gt;()
+                 .DecorateCommand&lt;PrintHelloWorld, AnotherDecorator&gt;();
+</code></pre>
+<p>will have execution order: <code>AnotherDecorator -&gt; SampleHelloWorldDecorator -&gt; HelloWorld</code>.</p>
+<p>This satisfied my requirements. I added additional classes to support another interface I had: <code>IQuery&lt;TAction, TResult&gt;</code>. The implementation is almost the same with one more generic type argument for the result.</p>
+<p>This solution is not perfect but worked for me, so I decided to use it without trying to further generalize it. If more sophisticated use cases come up in the future I have the choice of implementing them or scrape the whole thing in favor of something else.</p>
+<p><a name="alternatives"></a></p>
+<h2 id="alternatives">Alternatives</h2>
+<p>This solution fits my requirements and is not a general-purpose one. There are some alternatives I found (by the time of writing):</p>
+<ul>
+<li>The first advice is to switch to a different container that supports decorators out of the box.</li>
+<li><a href="https://github.com/khellang/Scrutor">Scrutor</a> provides assembly scanning and decoration extensions for Microsoft.Extensions.DependencyInjection.</li>
+<li><a href="https://github.com/VikKol/Microsoft.DI.Decorator">Microsoft.DI.Decorator</a> provides a simple implementation of Decorators in Microsoft.Extensions.DependencyInjection.</li>
+<li><a href="https://github.com/lawrence-laz/Decor.NET">Decor.NET</a> provides a nice and simple way to execute any code before and after any other method.</li>
+</ul>
+<h2 id="conclusion">Conclusion</h2>
+<p>Lack of support for decoration by Microsoft.Extensions.DependencyInjection implementation hampers one of the benefits of using a container. Nevertheless, it can be overcome either with a custom implementation suiting your needs or by using a third-party solution.</p>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'pmarinov';
+    var disqus_identifier = '2020-09-16-a-case-of-decorators-with-microsoft-di';
+    var disqus_title = 'A Case of Decorators with Microsoft DI';
+    var disqus_url = 'https://pmarinov.xyz/posts/2020-09-16-a-case-of-decorators-with-microsoft-di';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+    
+    (function () {
+        var s = document.createElement('script'); s.async = true;
+        s.type = 'text/javascript';
+        s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+        (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+    }());
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                </div>
+                        </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Footer -->
+                <footer>
+                        <div class="container">
+        <div class="row">
+                <ul class="list-inline text-center">
+                        <li>
+                            <a href="https://www.linkedin.com/in/petar-marinov-marinov">
+                                <span class="fa-stack">
+                                    <i class="fa fa-linkedin-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/petar-m/">
+                                <span class="fa-stack">
+                                    <i class="fa fa-github-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                <div class="col-md-12 text-center">
+                    <p class="copyright text-muted">
+                        Copyright © 2020
+                        <br />
+                            <a href="/feed.rss"><i class="fa fa-rss"></i> RSS Feed</a>
+                        |
+                            <a href="/feed.atom"><i class="fa fa-rss"></i> Atom Feed</a>
+                        <br />
+                        <strong><a href="https://wyam.io">Generated by Wyam</a></strong>
+                    </p>
+                </div>
+        </div>
+</div>
+                </footer> 
+
+                <script src="/assets/js/jquery.min.js"></script>
+                <script src="/assets/js/bootstrap.min.js"></script>     
+                <script src="/assets/js/highlight.pack.js"></script>   
+                <script src="/assets/js/clean-blog.js"></script>
+                <script src="/assets/js/d3.v3.min.js"></script>
+                <script src="/assets/js/trianglify.min.js"></script>
+                <script src="/assets/js/Please-compressed.js"></script>
+                <script src="/assets/js/background-check.min.js"></script>
+
+                <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+                <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+                <!--[if lt IE 9]>
+                        <script src="/assets/js/html5shiv.js"></script>
+                        <script src="/assets/js/respond.min.js"></script>
+                <![endif]-->
+                
+                
+                <script>hljs.initHighlightingOnLoad();</script>
+
+                        <script type="text/javascript">                
+                                // Header background                        
+                                var colors = Please.make_color({
+                                        colors_returned: 3,
+                                        saturation: .6
+                                });
+                                var t = new Trianglify({
+                                        x_gradient: colors,
+                                        y_gradient: ["#FFFFFF"]
+                                });
+                                var header = document.getElementById("intro-header");
+                                var pattern = t.generate(header.clientWidth, header.clientHeight);
+                                header.setAttribute('style', 'background-image: ' + pattern.dataUrl);                        
+                        </script>
+
+                <script>
+                        BackgroundCheck.init({
+                                targets: '.intro-header,.navbar',
+                                images: '.intro-header'
+                        });
+                </script>
+        </body>
+</html>
+
