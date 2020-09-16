@@ -1,6 +1,6 @@
 Title: Breaking change in Entity Framework Core provider for PostgreSQL 3.0
 Published: 22/3/2020
-Tags: [PostgreSQL, EF]
+Tags: [PostgreSQL,.NET Core,EF]
 ---
 <!-- # Breaking change in Entity Framework Core provider for PostgreSQL 3.0 -->
 
