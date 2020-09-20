@@ -95,14 +95,14 @@ Published on 16 September 2020<br>    </div>
 
 <p>Microsoft.Extensions.DependencyInjection implementation does not support decoration or interception out of the box. Here is how I solved this for a specific case.</p>
 <h2 id="background">Background</h2>
-<p>In a project I worked on recently I was using <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.extensions.dependencyinjection?view=dotnet-plat-ext-3.1">Microsoft.Extensions.DependencyInjection container</a>.
-I used a variation of the <a href="https://en.wikipedia.org/wiki/Command_pattern">Command Pattern</a> to expose domain logic and I needed to guarantee that every command instance is created and executed in scope, and the scope is then disposed of.</p>
-<p>I wanted commands to be independent, allowing multiple commands to be executed in parallel, or resolved and executed within <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-3.1&amp;tabs=visual-studio">hosted services</a> or in fire-and-forget scenarios. To illustrate a particular problem: let's say I have two commands depending on EF DbContext, and something depending on both.
-Now if DbContext is scoped then I will get two command instances depending internally on the same DbContext instance and if executed in parallel there will be a problem since <a href="https://docs.microsoft.com/en-us/ef/core/miscellaneous/configuring-dbcontext#avoiding-dbcontext-threading-issues">DbContext is not thread-safe</a>.</p>
+<p>In a project I worked on recently I was using <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.extensions.dependencyinjection?view=dotnet-plat-ext-3.1" target="_blank">Microsoft.Extensions.DependencyInjection container</a>.
+I used a variation of the <a href="https://en.wikipedia.org/wiki/Command_pattern" target="_blank">Command Pattern</a> to expose domain logic and I needed to guarantee that every command instance is created and executed in scope, and the scope is then disposed of.</p>
+<p>I wanted commands to be independent, allowing multiple commands to be executed in parallel, or resolved and executed within <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-3.1&amp;tabs=visual-studio" target="_blank">hosted services</a> or in fire-and-forget scenarios. To illustrate a particular problem: let's say I have two commands depending on EF DbContext, and something depending on both.
+Now if DbContext is scoped then I will get two command instances depending internally on the same DbContext instance and if executed in parallel there will be a problem since <a href="https://docs.microsoft.com/en-us/ef/core/miscellaneous/configuring-dbcontext#avoiding-dbcontext-threading-issues" target="_blank">DbContext is not thread-safe</a>.</p>
 <p><img src="images/a-case-of-decorators-with-microsoft-di/shared_dbcontext.svg" class="img-fluid" alt="shared DbContext" /></p>
-<p>I could register the DbContext as transient but then I have to be sure that scope is disposed of according to <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-3.1#general-idisposable-guidelines">IDisposable guidelines</a>. It is not a problem if my domain lives in ASP .NET Core application since requests are executed in scope by design.
+<p>I could register the DbContext as transient but then I have to be sure that scope is disposed of according to <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-3.1#general-idisposable-guidelines" target="_blank">IDisposable guidelines</a>. It is not a problem if my domain lives in ASP .NET Core application since requests are executed in scope by design.
 For windows services, hosted services, or console applications though the scope should be managed and I did not want this to be a concern in my domain.</p>
-<p>The <a href="https://en.wikipedia.org/wiki/Decorator_pattern">Decorator</a> design pattern seemed like a way to solve it.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Decorator_pattern" target="_blank">Decorator</a> design pattern seemed like a way to solve it.</p>
 <h2 id="what-i-wanted">What I Wanted</h2>
 <p>I had a generic abstraction similar to:</p>
 <pre><code class="language-csharp">public interface ICommand&lt;TAction&gt;
@@ -288,9 +288,9 @@ Appears that this information can be passed as generic type argument:</p>
 <p>This solution fits my requirements and is not a general-purpose one. There are some alternatives I found (by the time of writing):</p>
 <ul>
 <li>The first advice is to switch to a different container that supports decorators out of the box.</li>
-<li><a href="https://github.com/khellang/Scrutor">Scrutor</a> provides assembly scanning and decoration extensions for Microsoft.Extensions.DependencyInjection.</li>
-<li><a href="https://github.com/VikKol/Microsoft.DI.Decorator">Microsoft.DI.Decorator</a> provides a simple implementation of Decorators in Microsoft.Extensions.DependencyInjection.</li>
-<li><a href="https://github.com/lawrence-laz/Decor.NET">Decor.NET</a> provides a nice and simple way to execute any code before and after any other method.</li>
+<li><a href="https://github.com/khellang/Scrutor" target="_blank">Scrutor</a> provides assembly scanning and decoration extensions for Microsoft.Extensions.DependencyInjection.</li>
+<li><a href="https://github.com/VikKol/Microsoft.DI.Decorator" target="_blank">Microsoft.DI.Decorator</a> provides a simple implementation of Decorators in Microsoft.Extensions.DependencyInjection.</li>
+<li><a href="https://github.com/lawrence-laz/Decor.NET" target="_blank">Decor.NET</a> provides a nice and simple way to execute any code before and after any other method.</li>
 </ul>
 <h2 id="conclusion">Conclusion</h2>
 <p>Lack of support for decoration by Microsoft.Extensions.DependencyInjection implementation hampers one of the benefits of using a container. Nevertheless, it can be overcome either with a custom implementation suiting your needs or by using a third-party solution.</p>
