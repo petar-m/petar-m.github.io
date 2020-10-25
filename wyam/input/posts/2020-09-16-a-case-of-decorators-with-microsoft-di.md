@@ -174,7 +174,7 @@ public class Processor
 Having `ScopedCommand<TAction, TImplementation>` in place created an opportunity to add any number of decorators between it and the actual `ICommand<TAction>` that is decorated. I introduced a base class for command decorators using method injection (it will be used by `ScopedCommand` to wire-up decorators):     
 
 ```csharp
-satisfied my requirements public abstract class CommandDecorator<TAction> : ICommand<TAction>
+ public abstract class CommandDecorator<TAction> : ICommand<TAction>
  {
     protected ICommand<TAction> Command { get; private set; }
     public abstract Task ExecuteAsync(TAction action);
