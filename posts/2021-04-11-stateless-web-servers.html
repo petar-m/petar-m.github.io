@@ -1,0 +1,238 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+
+        <title>Petar Marinov - Stateless Web Servers</title>
+        <meta name="description" content="/dev/shared" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">        
+
+        <link type="application/rss+xml" rel="alternate" title="Petar Marinov" href="/feed.rss" />
+                <link type="application/atom+xml" rel="alternate" title="Petar Marinov" href="/feed.atom" />
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+        <link href="/assets/css/bootstrap.min.css" rel="stylesheet" />
+        <link href="/assets/css/highlight.css" rel="stylesheet">
+        <link href="/assets/css/clean-blog.css" rel="stylesheet" />
+        <link href="/assets/css/master.css" rel="stylesheet" />
+        <link href="/assets/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+        <link href='//fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
+        <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+        <link href="/assets/css/override.css" rel="stylesheet" />
+
+
+        <meta name="application-name" content="Petar Marinov" />
+        <meta name="msapplication-tooltip" content="Petar Marinov" />
+        <meta name="msapplication-starturl" content="/" />
+
+        <meta property="og:title" content="Petar Marinov - Stateless Web Servers" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://pmarinov.xyz/posts/2021-04-11-stateless-web-servers" />
+        <!-- TODO: More social graph meta tags -->
+
+        
+
+
+        </head>
+        <body>
+                
+                <!-- Navigation -->
+                <nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+                        <div class="container-fluid">
+                                <!-- Brand and toggle get grouped for better mobile display -->
+                                <div class="navbar-header page-scroll">
+                                        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+                                        <span class="sr-only">Toggle navigation</span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        <span class="icon-bar"></span>
+                                        </button>
+                                        <a class="navbar-brand" href="/">Petar Marinov</a>
+                                </div>
+                        
+                                <!-- Collect the nav links, forms, and other content for toggling -->
+                                <div class="collapse navbar-collapse" id="navbar-collapse">
+                                        <ul class="nav navbar-nav navbar-right">
+                                                        <li><a href="/posts">Archive</a></li>
+        <li><a href="/tags">Tags</a></li>
+        <li><a href="/about">About Me</a></li>
+ 
+                                        </ul>
+                                </div>
+                                <!-- /.navbar-collapse -->
+                        </div>
+                        <!-- /.container -->
+                </nav>
+                
+                <!-- Page Header -->
+                <header class="intro-header" id="intro-header">
+                        <div class="container">
+                                <div class="row">
+                                        <div class="col-md-12">
+
+    
+<div class="post-heading">
+    <h1>Stateless Web Servers</h1>
+    <div class="meta">        
+Published on 11 April 2021<br>    </div>
+        <div class="tags">
+                    <a role="button" href="/tags/NET" class="btn btn-default btn-xs">.NET</a>
+                    <a role="button" href="/tags/Redis" class="btn btn-default btn-xs">Redis</a>
+                    <a role="button" href="/tags/SignalR" class="btn btn-default btn-xs">SignalR</a>
+        </div>     
+</div>
+                                        </div>
+                                </div>
+                        </div>
+                </header>
+                
+                <!-- Main Content -->
+                <div class="container">
+                        <div class="row">
+                                <div id="content" class="col-md-12">
+                                        
+
+<p>It all began when we discovered a strange behavior in one of our applications - users had been randomly logged out of the system.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>The system in question has multiple instances of web servers serving the UI and a load balancer with sticky connections configuration. We were not able to reproduce the issue in any of our environments and not all customers were affected. After a thorough investigation, it appeared that this was specific to some ISPs changing IPs and breaking the &quot;stickiness&quot; of connections.</p>
+<h2 id="load-balancers-sticky-connections">Load Balancers Sticky Connections</h2>
+<p>Why were sticky connections selected as a load balancing strategy, to begin with? Probably because it had been a fast solution to a problem at the time being. With the rapid growth of the customer base and team racing to deliver features, no one was willing to give it a second thought. Sticky connections offer the promise that users would hit the same web server they connected the first time, so from a developer's point of view, it meant simplicity - the same as having only one web server.</p>
+<h2 id="web-servers-state">Web Servers State</h2>
+<p>Why was connecting to the same web server important? Because there was an application state, namely the user session, stored in the web server's memory. <a href="https://docs.microsoft.com/en-us/aspnet/signalr/overview/getting-started/introduction-to-signalr">SignalR</a> also used the session and the transport protocol was fixed as long polling.</p>
+<h2 id="choosing-a-solution-stateless-web-servers">Choosing a Solution - Stateless Web Servers</h2>
+<p>The problem could be solved by an even more sophisticated load balancer configuration. We felt, however, that increasing the infrastructure complexity will harm scalability in the long run. We decided to go with stateless web servers instead. Then a simpler and more efficient load balancing strategy, like least connections or round-robin, can be implemented. Now there is a catch - stateless web server does not mean that application does not have a state, it means that the state will not be bound to the web server's memory thus enabling any webserver to serve a request.</p>
+<h2 id="achieving-statelessness">Achieving &quot;Statelessness&quot;</h2>
+<p>We needed to solve two application-level problems - moving the session state out of memory and ensuring SignalR was still working. The first step was to decide where the session state would be persisted. We researched three options - <a href="https://docs.microsoft.com/en-us/previous-versions/aspnet/ms178586(v=vs.100)#state-server-mode">Microsoft Session State Server</a>, <a href="https://docs.microsoft.com/en-us/previous-versions/aspnet/ms178586(v=vs.100)#sql-server-mode">Microsoft SQL Server</a>, and <a href="https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/cache-aspnet-session-state-provider">Redis</a>. All of the options were easy to implement requiring a NuGet package dependency and configuration. Of course, they also required their specific service to run on a separate server, accessible from the web servers. Session State Server was dismissed as we were not sure how much support it will get in the future. MS SQL Server seemed like a too heavyweight solution, even using memory-optimized tables. We chose Redis because it gave us the best performance and we had more use for it in mind. Scaling SignalR boiled down to configure it to use <a href="https://docs.microsoft.com/en-us/aspnet/signalr/overview/performance/scaleout-with-redis">Redis Backplane</a>.<br />
+It is worth noting that any other resources bound to a server should be considered and moved to a shared location (for example - files on the local files system).</p>
+<h2 id="implementation">Implementation</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<p>During the proof of concept phase, we had a glimpse of the <a href="https://nickcraver.com/blog/2020/02/11/binding-redirects/">&quot;binding redirect hell&quot;</a> that was awaiting us. Targeting a bit older version of .NET Framework and having a ton of dependencies was not the ideal situation to be in, especially when you throw in the mix some transient dependencies on .NET Standard. After going through verbose MS Build logs countless times we decided that a move to .NET Framework 4.8 and SignalR 2 and updating and cleaning up dependencies will be best in the long term. The decision was reinforced by the fact that 4.8 is the last stop for the &quot;full&quot; framework and since we were not able to move to .NET Core, at least we could be on the latest and long-term supported version.</p>
+<h3 id="session-state">Session State</h3>
+<p>Once upgrades were completed we moved to get the session state out of the server memory. We opted for the built-in binary serialization, meaning we needed to add Serializable attributes to a bunch of classes. Since the session state was used to put in whatever you want, it was abused to be somewhat of a cache for various stuff. We were surprised to discover that when serialized in some cases it can be up to 3MB! Imagine this serialized and moved over the network on every request. It took some work to trim it down to a more manageable size - around 100KB in worst cases. This started another long-term project which goal was to have a session state containing only a few strings and a bunch of ids, and a distributed cache to store frequently used data - but this is another story.<br />
+One important piece of configuration was to use the same encryption configuration and keys on all IIS instances. Since an auth cookie produced by one server will eventually end up sent to a different one, each web server should be able to understand it.</p>
+<h3 id="signalr">SignalR</h3>
+<p>Scaling out SignalR with Redis was easy, again it took a NuGet package dependency and configuration. There were two caveats though - we had to explicitly set the protocol to WebSocket for all clients which in turn allowed skipping protocol negotiation. This, and the upgrade to SignalR 2, meant that the server session was not supported. It was not a big problem since the requests were still authenticated and we could set up a few parameters to be passed with each request. On the server, they were verified and then used to recreate the session object getting whatever was needed from a cache. We also replaced custom notifications filtering involving storing connections and users with SignalR groups.<br />
+We had windows services producing notifications that were sent to web servers via custom messaging, and in turn, web servers used SignalR to broadcast to clients. We were able to hook up our windows services to the SignalR directly leveraging SignalR backplane and groups. This greatly simplified the overall implementation.</p>
+<h3 id="roll-out">Roll Out</h3>
+<p>Getting all this to production without disturbing customers could be tricky. We planned to do it in phases and have a few weeks between each phase deployment to root out and fix eventual problems. We also had a staging environment with a properly configured load balancer with the envisioned future production configuration.</p>
+<p>The first phase was the riskiest - migration to .NET Framework 4.8, SignalR 2, and WebSockets. There were some problems with WebSockets connections, generally related to customer's infrastructure. We found this <a href="https://websocketstest.com">https://websocketstest.com</a> to be quite handy when looking for connectivity issues, kudos to its creators and maintainers.</p>
+<p>The second phase was switching SignalR to use the Redis backplane. It was only a configuration so we had a fast rollback option. We had also implemented an Azure Service Bus backplane as an alternative if something went wrong. Both options were not used since the switch went without problems.</p>
+<p>Next was switching windows services to use the Redis backplane for broadcasting notifications, again without problems. This was a configuration too so a rollback to the custom solution was a matter of configuration.</p>
+<p>The third phase was moving the session state in Redis. Once more it was a matter of changing configuration. This went smoothly without any issues at all.</p>
+<p>All this done, there was the last and most important piece of the puzzle to complete the solution - changing the load balancer configuration. Because all of the required configurations were already in production and working as expected we were quite confident that will be without any problems - which was the case in the end.</p>
+<p>This completed the implementation of our solution and it solved the original problem, and as an additional benefit improved the scalability of our web servers.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>A move from stateful to stateless web servers is not easy, mostly because the software is often implemented with the assumption that all requests for a given session will be handled by the same server. With careful planning, implementation, and rollout, it is achievable with minimal disturbance of service. Stateless web servers are easier to scale and manage and applications are more resilient to crashes or restarts. In my case, this also surfaced some hidden problems and improved the system as a whole.</p>
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'pmarinov';
+    var disqus_identifier = '2021-04-11-stateless-web-servers';
+    var disqus_title = 'Stateless Web Servers';
+    var disqus_url = 'https://pmarinov.xyz/posts/2021-04-11-stateless-web-servers';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+    
+    (function () {
+        var s = document.createElement('script'); s.async = true;
+        s.type = 'text/javascript';
+        s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+        (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+    }());
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+                                </div>
+                        </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Footer -->
+                <footer>
+                        <div class="container">
+        <div class="row">
+                <ul class="list-inline text-center">
+                        <li>
+                            <a href="https://www.linkedin.com/in/petar-marinov-marinov">
+                                <span class="fa-stack">
+                                    <i class="fa fa-linkedin-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/petar-m/">
+                                <span class="fa-stack">
+                                    <i class="fa fa-github-square fa-2x" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                <div class="col-md-12 text-center">
+                    <p class="copyright text-muted">
+                        Copyright © 2021
+                        <br />
+                            <a href="/feed.rss"><i class="fa fa-rss"></i> RSS Feed</a>
+                        |
+                            <a href="/feed.atom"><i class="fa fa-rss"></i> Atom Feed</a>
+                        <br />
+                        <strong><a href="https://wyam.io">Generated by Wyam</a></strong>
+                    </p>
+                </div>
+        </div>
+</div>
+                </footer> 
+
+                <script src="/assets/js/jquery.min.js"></script>
+                <script src="/assets/js/bootstrap.min.js"></script>     
+                <script src="/assets/js/highlight.pack.js"></script>   
+                <script src="/assets/js/clean-blog.js"></script>
+                <script src="/assets/js/d3.v3.min.js"></script>
+                <script src="/assets/js/trianglify.min.js"></script>
+                <script src="/assets/js/Please-compressed.js"></script>
+                <script src="/assets/js/background-check.min.js"></script>
+
+                <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+                <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+                <!--[if lt IE 9]>
+                        <script src="/assets/js/html5shiv.js"></script>
+                        <script src="/assets/js/respond.min.js"></script>
+                <![endif]-->
+                
+                
+                <script>hljs.initHighlightingOnLoad();</script>
+
+                        <script type="text/javascript">                
+                                // Header background                        
+                                var colors = Please.make_color({
+                                        colors_returned: 3,
+                                        saturation: .6
+                                });
+                                var t = new Trianglify({
+                                        x_gradient: colors,
+                                        y_gradient: ["#FFFFFF"]
+                                });
+                                var header = document.getElementById("intro-header");
+                                var pattern = t.generate(header.clientWidth, header.clientHeight);
+                                header.setAttribute('style', 'background-image: ' + pattern.dataUrl);                        
+                        </script>
+
+                <script>
+                        BackgroundCheck.init({
+                                targets: '.intro-header,.navbar',
+                                images: '.intro-header'
+                        });
+                </script>
+        </body>
+</html>
+

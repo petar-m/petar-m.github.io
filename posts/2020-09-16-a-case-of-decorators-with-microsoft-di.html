@@ -217,7 +217,7 @@ Appears that this information can be passed as generic type argument:</p>
 </code></pre>
 <h2 id="adding-command-decorators">Adding Command Decorators</h2>
 <p>Having <code>ScopedCommand&lt;TAction, TImplementation&gt;</code> in place created an opportunity to add any number of decorators between it and the actual <code>ICommand&lt;TAction&gt;</code> that is decorated. I introduced a base class for command decorators using method injection (it will be used by <code>ScopedCommand</code> to wire-up decorators):</p>
-<pre><code class="language-csharp">public abstract class CommandDecorator&lt;TAction&gt; : ICommand&lt;TAction&gt;
+<pre><code class="language-csharp"> public abstract class CommandDecorator&lt;TAction&gt; : ICommand&lt;TAction&gt;
  {
     protected ICommand&lt;TAction&gt; Command { get; private set; }
     public abstract Task ExecuteAsync(TAction action);
@@ -348,7 +348,7 @@ Appears that this information can be passed as generic type argument:</p>
                     </ul>
                 <div class="col-md-12 text-center">
                     <p class="copyright text-muted">
-                        Copyright © 2020
+                        Copyright © 2021
                         <br />
                             <a href="/feed.rss"><i class="fa fa-rss"></i> RSS Feed</a>
                         |
