@@ -170,7 +170,7 @@
     <package id="Wyam.Markdown" version="2.2.9" targetFramework="netcoreapp2.1" />
     <package id="Wyam.Razor" version="2.2.9" targetFramework="netcoreapp2.1" />
     <package id="Wyam.Sass" version="2.2.9" targetFramework="netcoreapp2.1" />
-    <package id="YamlDotNet" version="4.3.1" targetFramework="netcoreapp2.1" />
+    <package id="YamlDotNet" version="5.1.0" targetFramework="netcoreapp2.1" />
     <package id="Wyam.Yaml" version="2.2.9" targetFramework="netcoreapp2.1" />
     <package id="Wyam.Web" version="2.2.9" targetFramework="netcoreapp2.1" />
   </package>
