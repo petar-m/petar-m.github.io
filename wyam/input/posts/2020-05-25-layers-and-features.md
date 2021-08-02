@@ -1,6 +1,6 @@
 Title: Layers and Features
 Published: 25/5/2020
-Tags: General
+Tags: [General, Vertical Slices]
 ---
 
 ## Background  
