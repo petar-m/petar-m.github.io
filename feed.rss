@@ -5,8 +5,64 @@
 		<link>https://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2021</copyright>
-		<pubDate>Sun, 11 Apr 2021 19:35:47 GMT</pubDate>
-		<lastBuildDate>Sun, 11 Apr 2021 19:35:47 GMT</lastBuildDate>
+		<pubDate>Mon, 02 Aug 2021 13:19:42 GMT</pubDate>
+		<lastBuildDate>Mon, 02 Aug 2021 13:19:42 GMT</lastBuildDate>
+		<item>
+			<title>Practical Vertical Slices</title>
+			<link>https://pmarinov.xyz/posts/2021-08-01-practical-vertical-slices</link>
+			<description>&lt;p&gt;Worked recently on a new project and decided to use Vertical Slices approach - this is how it turned out.&lt;/p&gt;</description>
+			<guid>https://pmarinov.xyz/posts/2021-08-01-practical-vertical-slices</guid>
+			<pubDate>Sun, 01 Aug 2021 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;Worked recently on a new project and decided to use Vertical Slices approach - this is how it turned out.&lt;/p&gt;
+&lt;h2 id="background"&gt;Background&lt;/h2&gt;
+&lt;p&gt;The basic idea of Vertical Slices is:&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;&lt;strong&gt;Keep together what is likely to change together.&lt;/strong&gt;&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;But what do a slice looks like? I decided to organize my slices like this:&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/practical-vertical-slices/vertical-slice.svg" class="img-fluid" alt="a vertical slice" /&gt;&lt;/p&gt;
+&lt;p&gt;A Vertical Slice represents some functionality in a way that is as autonomous as possible. It consists of a public and internal part. Think about it as somewhat similar to what Bounded Context in DDD is. Look for a strong cohesion within a slice and loose coupling between slices.&lt;/p&gt;
+&lt;p&gt;The public part defines its public interfaces along with anything that is intended to be public - abstractions, DTOs, etc. It forms the contract used to interact with it - be it other slices or &amp;quot;external&amp;quot; components, i.e. Web API controller consuming its functionality.&lt;/p&gt;
+&lt;p&gt;The internal part consists of all the concrete implementations and everything the slice needs to fulfill its tasks. These implementations are &amp;quot;shielded&amp;quot; by the public part and can be changed at will without breaking dependents, given no breaking changes are introduced to the public contract.&lt;/p&gt;
+&lt;p&gt;Levels of indirection are decided per slice. For example, if it is implementing some complex domain capability a layered approach and a rich domain model can be beneficial. Another example is simple reporting where projecting a query result directly to DTOs will be sufficient.&lt;/p&gt;
+&lt;p&gt;This is how my project layout looked like:&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/practical-vertical-slices/project-layout.svg" class="img-fluid" alt="project layout" /&gt;&lt;/p&gt;
+&lt;p&gt;I decided to keep it simple and put all slices in a single assembly - which was my domain implementation. I hosted it in a web host to provide access to it via Web API and also in a console application for executing some recurring tasks.&lt;/p&gt;
+&lt;p&gt;The &lt;em&gt;Infrastructure&lt;/em&gt; namespace was for the cross-cutting concerns like logging, IoC setup, scope handling, etc.&lt;/p&gt;
+&lt;p&gt;The &lt;em&gt;Shared&lt;/em&gt; namespace is a bit special - shared components introduce coupling. In an ideal world, it will be empty but in reality, this is rarely possible.&lt;/p&gt;
+&lt;h2 id="implementation"&gt;Implementation&lt;/h2&gt;
+&lt;p&gt;I started the implementation with slices containing exactly one feature. I was not sure about how the features will relate and didn't want to overthink it.&lt;/p&gt;
+&lt;p&gt;The next step was to introduce data storage. I was using a relational database and an ORM and there was the first red flag - my shared database model and by extension, the database was introducing implicit coupling.&lt;/p&gt;
+&lt;p&gt;Further down the road, it got even worse. There were a lot of dependencies between slices.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/practical-vertical-slices/implementation-3.svg" class="img-fluid" alt="implementation 1" /&gt;&lt;/p&gt;
+&lt;p&gt;At this point you'll say &amp;quot;hey, this is a total mess&amp;quot; it will be the truth.&lt;/p&gt;
+&lt;p&gt;On the positive side, however, I have accomplished two important goals:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;I had a working proof of concept of my core features and had learned a lot about the domain and the business problems I was solving,&lt;/li&gt;
+&lt;li&gt;had technical experience about concrete implementations that worked well and which were not that good and need to be addressed.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;So it was a time to stop adding new features and address the problems armed with the gained knowledge.&lt;/p&gt;
+&lt;p&gt;First I looked at the coupling between slices. The slices that were &amp;quot;chatting&amp;quot; too much appeared to be different features serving the same business capability. Also, they were likely to change together, so it was natural to merge them into one slice so they can work together without additional overhead.&lt;br /&gt;
+There is nothing wrong with one slice using functionality another slice exposes. Beware of circular dependencies or chained dependencies - it probably means that slice boundaries are not in the right place.&lt;/p&gt;
+&lt;p&gt;The second problem - implicit coupling by the data model was more subtle. To analyze the dependencies I wrote down all the slices on one side and all databases entities on the other and connected them based on the usage. It was possible to introduce a separate ORM model per slice but it would solve only half of the problem. The database tables will still be shared between models which will be a pain in the future for sure.&lt;/p&gt;
+&lt;p&gt;One of the slices was responsible for ingesting external data and the relational model was working great for the task. The rest of the slices, however, were using only a de-normalized subset of the data. Their data access often consisted of the same four to six SQL joins over data that rarely changes once imported.&lt;/p&gt;
+&lt;p&gt;So there was a tradeoff decision - physically de-normalize the data into separate tables at the cost of data duplication. I decided to go this way and it paid off - the slices were now &amp;quot;owning&amp;quot; their database models (and database tables), they were using only the data they needed, and most important the implicit coupling was gone.&lt;/p&gt;
+&lt;p&gt;The last piece of the puzzle was propagating the changes from the relational model to its de-normalized versions. There are multiple choices for solving it, for example, using database triggers, or having the slice doing the changes to call other slices.&lt;/p&gt;
+&lt;p&gt;My choice was to introduce in-memory events with the publish-subscribe pattern. It is a simple enough decoupling technique, and it has additional benefits I'll address in a bit. This resembles CQRS in a way but is not, since each slice decides how to deal with events and has its own read-write logic.&lt;/p&gt;
+&lt;p&gt;This what my final solution looked like:&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/practical-vertical-slices/implementation-4.svg" class="img-fluid" alt="implementation 2" /&gt;&lt;/p&gt;
+&lt;h2 id="aftermath"&gt;Aftermath&lt;/h2&gt;
+&lt;p&gt;It appeared that this way of organizing the code had some advantages:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Each slice is dealing only with the data it needs, and since they are stored in separate tables, special indexing can be applied per slice needs.&lt;/li&gt;
+&lt;li&gt;Utilizing de-normalized data, I can move it to a more suitable storage solution for it, like a document database for example. The decision can be made per slice.&lt;/li&gt;
+&lt;li&gt;Introducing events opens up additional possibilities, for example, Event Sourcing can be used if feasible. Again the decision can be made per slice.&lt;/li&gt;
+&lt;li&gt;Events also allow modeling more complex processing without additional coupling, using patterns like Choreography or Orchestration.&lt;/li&gt;
+&lt;li&gt;Slices can be scaled independently by extracting them into microservices. There is a clear path to it - events to be moved to an external message broker, data to be moved to a separate storage, slice public interface to become an API callable over the network.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Additionally, using Vertical slices drove me to frequently analyze, revise and refine my domain model and its interactions. Paying attention to the domain cohesion within a slice can result in the merging or splitting of slices. It is all about finding the correct boundaries.&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;I find using Vertical Slices quite appealing. I was able to use an iterative approach, gaining and using knowledge along the way, pairing it with frequent refactoring and adjusting the boundaries of the slices. It resulted in a natural grouping of functionality making the whole solution more understandable and aligned with the business problems.&lt;/p&gt;
+</content:encoded>
+		</item>
 		<item>
 			<title>Stateless Web Servers</title>
 			<link>https://pmarinov.xyz/posts/2021-04-11-stateless-web-servers</link>

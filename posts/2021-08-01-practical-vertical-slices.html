@@ -5,7 +5,7 @@
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 
-        <title>Petar Marinov - Layers and Features</title>
+        <title>Petar Marinov - Practical Vertical Slices</title>
         <meta name="description" content="/dev/shared" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0">        
 
@@ -28,9 +28,9 @@
         <meta name="msapplication-tooltip" content="Petar Marinov" />
         <meta name="msapplication-starturl" content="/" />
 
-        <meta property="og:title" content="Petar Marinov - Layers and Features" />
+        <meta property="og:title" content="Petar Marinov - Practical Vertical Slices" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://pmarinov.xyz/posts/2020-05-25-layers-and-features" />
+        <meta property="og:url" content="https://pmarinov.xyz/posts/2021-08-01-practical-vertical-slices" />
         <!-- TODO: More social graph meta tags -->
 
         
@@ -75,9 +75,9 @@
 
     
 <div class="post-heading">
-    <h1>Layers and Features</h1>
+    <h1>Practical Vertical Slices</h1>
     <div class="meta">        
-Published on 25 May 2020<br>    </div>
+Published on 01 August 2021<br>    </div>
         <div class="tags">
                     <a role="button" href="/tags/General" class="btn btn-default btn-xs">General</a>
                     <a role="button" href="/tags/Vertical-Slices" class="btn btn-default btn-xs">Vertical Slices</a>
@@ -94,72 +94,63 @@ Published on 25 May 2020<br>    </div>
                                 <div id="content" class="col-md-12">
                                         
 
+<p>Worked recently on a new project and decided to use Vertical Slices approach - this is how it turned out.</p>
 <h2 id="background">Background</h2>
-<p>Layered Architecture is a well known and proven approach when developing software. But should it always be the default choice?</p>
-<h2 id="layered-architecture-problems">Layered Architecture Problems</h2>
-<p>By &quot;Layered Architecture&quot; I refer to the class of software architectures using <a href="https://en.wikipedia.org/wiki/Layer_(object-oriented_design)">Layers</a> and the <a href="https://en.wikipedia.org/wiki/Dependency_inversion_principle">Dependency Inversion Principle</a>. <a href="https://jeffreypalermo.com/2008/07/the-onion-architecture-part-1/">Onion</a>, <a href="https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)">Hexagonal</a>, Ports and Adapters, <a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html">Clean</a> are some notable definitions.</p>
-<p>There is no doubt in the benefits of layers and Layered Architecture. Therefore I will go directly to what bothers me about it.</p>
-<p><img src="images/layers.svg" class="img-fluid" alt="layers" /></p>
+<p>The basic idea of Vertical Slices is:</p>
+<p><em><strong>Keep together what is likely to change together.</strong></em></p>
+<p>But what do a slice looks like? I decided to organize my slices like this:</p>
+<p><img src="images/practical-vertical-slices/vertical-slice.svg" class="img-fluid" alt="a vertical slice" /></p>
+<p>A Vertical Slice represents some functionality in a way that is as autonomous as possible. It consists of a public and internal part. Think about it as somewhat similar to what Bounded Context in DDD is. Look for a strong cohesion within a slice and loose coupling between slices.</p>
+<p>The public part defines its public interfaces along with anything that is intended to be public - abstractions, DTOs, etc. It forms the contract used to interact with it - be it other slices or &quot;external&quot; components, i.e. Web API controller consuming its functionality.</p>
+<p>The internal part consists of all the concrete implementations and everything the slice needs to fulfill its tasks. These implementations are &quot;shielded&quot; by the public part and can be changed at will without breaking dependents, given no breaking changes are introduced to the public contract.</p>
+<p>Levels of indirection are decided per slice. For example, if it is implementing some complex domain capability a layered approach and a rich domain model can be beneficial. Another example is simple reporting where projecting a query result directly to DTOs will be sufficient.</p>
+<p>This is how my project layout looked like:</p>
+<p><img src="images/practical-vertical-slices/project-layout.svg" class="img-fluid" alt="project layout" /></p>
+<p>I decided to keep it simple and put all slices in a single assembly - which was my domain implementation. I hosted it in a web host to provide access to it via Web API and also in a console application for executing some recurring tasks.</p>
+<p>The <em>Infrastructure</em> namespace was for the cross-cutting concerns like logging, IoC setup, scope handling, etc.</p>
+<p>The <em>Shared</em> namespace is a bit special - shared components introduce coupling. In an ideal world, it will be empty but in reality, this is rarely possible.</p>
+<h2 id="implementation">Implementation</h2>
+<p>I started the implementation with slices containing exactly one feature. I was not sure about how the features will relate and didn't want to overthink it.</p>
+<p>The next step was to introduce data storage. I was using a relational database and an ORM and there was the first red flag - my shared database model and by extension, the database was introducing implicit coupling.</p>
+<p>Further down the road, it got even worse. There were a lot of dependencies between slices.</p>
+<p><img src="images/practical-vertical-slices/implementation-3.svg" class="img-fluid" alt="implementation 1" /></p>
+<p>At this point you'll say &quot;hey, this is a total mess&quot; it will be the truth.</p>
+<p>On the positive side, however, I have accomplished two important goals:</p>
 <ul>
-<li><p>It is often used as a system-wide architecture. To implement the first features, the layers need to be defined upfront. This means that once layers are in place, every feature should comply with them. The problem is that a decision having such a big impact on future development is made too early.</p>
-</li>
-<li><p>Adding a feature requires changes in multiple layers. In the early stages of development or when prototyping some new feature, this can be a burden. Also, future maintenance and development can become complicated.</p>
-</li>
-<li><p>Layers enforce abstraction - good layer design is to have an internal and external representation of the entities it handles. There are cases when this does not bring any value, e.g. simple <a href="https://en.wikipedia.org/wiki/Create,_read,_update_and_delete">CRUD</a> or reporting.</p>
-</li>
-<li><p>Sometimes having to go through all layers is an overhead. This is why some define layers as &quot;closed&quot; (it is mandatory to always go through it) and &quot;open&quot; (can be &quot;skipped&quot; in some cases). I don't find this a good practice. Once allowed such &quot;shortcuts&quot; will repeat over time leading to probably &quot;open&quot; all layers thus defeating the purpose.</p>
-</li>
-<li><p>Features tend to have specific requirements. Although layers promote reusability in most cases each layer will have abstractions serving specific features.</p>
-</li>
+<li>I had a working proof of concept of my core features and had learned a lot about the domain and the business problems I was solving,</li>
+<li>had technical experience about concrete implementations that worked well and which were not that good and need to be addressed.</li>
 </ul>
-<p>So what can be used as an alternative?</p>
-<h2 id="vertical-slices">Vertical Slices</h2>
-<p><a href="https://jimmybogard.com/vertical-slice-architecture/">Vertical Slices Architecture</a> moves the boundaries from layers to features. The general idea is to group what is likely to change together.</p>
-<p><img src="images/verticalslices.svg" class="img-fluid" alt="layers" /></p>
-<p>Verticals slices do not exclude layers. The difference is that decisions can be made on a feature basis. Some features may benefit from a rich domain model and more strict layering and abstractions. For others, a simple <a href="https://www.martinfowler.com/eaaCatalog/transactionScript.html">Transaction Script</a> may be suitable, or <a href="https://martinfowler.com/eaaDev/EventSourcing.html">Event Sourcing</a> or <a href="https://en.wikipedia.org/wiki/Command%E2%80%93query_separation#Command_query_responsibility_segregation">CQRS</a>.</p>
-<p>There are some general considerations when using this approach:</p>
+<p>So it was a time to stop adding new features and address the problems armed with the gained knowledge.</p>
+<p>First I looked at the coupling between slices. The slices that were &quot;chatting&quot; too much appeared to be different features serving the same business capability. Also, they were likely to change together, so it was natural to merge them into one slice so they can work together without additional overhead.<br />
+There is nothing wrong with one slice using functionality another slice exposes. Beware of circular dependencies or chained dependencies - it probably means that slice boundaries are not in the right place.</p>
+<p>The second problem - implicit coupling by the data model was more subtle. To analyze the dependencies I wrote down all the slices on one side and all databases entities on the other and connected them based on the usage. It was possible to introduce a separate ORM model per slice but it would solve only half of the problem. The database tables will still be shared between models which will be a pain in the future for sure.</p>
+<p>One of the slices was responsible for ingesting external data and the relational model was working great for the task. The rest of the slices, however, were using only a de-normalized subset of the data. Their data access often consisted of the same four to six SQL joins over data that rarely changes once imported.</p>
+<p>So there was a tradeoff decision - physically de-normalize the data into separate tables at the cost of data duplication. I decided to go this way and it paid off - the slices were now &quot;owning&quot; their database models (and database tables), they were using only the data they needed, and most important the implicit coupling was gone.</p>
+<p>The last piece of the puzzle was propagating the changes from the relational model to its de-normalized versions. There are multiple choices for solving it, for example, using database triggers, or having the slice doing the changes to call other slices.</p>
+<p>My choice was to introduce in-memory events with the publish-subscribe pattern. It is a simple enough decoupling technique, and it has additional benefits I'll address in a bit. This resembles CQRS in a way but is not, since each slice decides how to deal with events and has its own read-write logic.</p>
+<p>This what my final solution looked like:</p>
+<p><img src="images/practical-vertical-slices/implementation-4.svg" class="img-fluid" alt="implementation 2" /></p>
+<h2 id="aftermath">Aftermath</h2>
+<p>It appeared that this way of organizing the code had some advantages:</p>
 <ul>
-<li><p>Make features as independent as possible. Define a clear public interface for other features or the UI layer to use while keeping internal details private.</p>
-</li>
-<li><p>Be very careful when introducing shared components - do not introduce accidental coupling. That said there will be shared domain models and services that will emerge over time. It is normal to have a shared database at least in the beginning.</p>
-</li>
-<li><p>Strive toward reusable Application Infrastructure - security, logging, transactions, exception handling, lifetime scopes. All features should be able to benefit from it and concentrate on the business problem they solve.</p>
-</li>
-<li><p>Do not abandon the Dependency Inversion Principle - there are still benefits from decoupling within a feature.</p>
-</li>
-<li><p>Simple in-memory events or messaging can act as an additional way of decoupling features.</p>
-</li>
-<li><p>My preference is to keep the UI in a separate layer (probably physically separated e.g. in different assembly/package/module). This gives me the flexibility to use different hosts for the application - web server, console application, or system service.</p>
-</li>
+<li>Each slice is dealing only with the data it needs, and since they are stored in separate tables, special indexing can be applied per slice needs.</li>
+<li>Utilizing de-normalized data, I can move it to a more suitable storage solution for it, like a document database for example. The decision can be made per slice.</li>
+<li>Introducing events opens up additional possibilities, for example, Event Sourcing can be used if feasible. Again the decision can be made per slice.</li>
+<li>Events also allow modeling more complex processing without additional coupling, using patterns like Choreography or Orchestration.</li>
+<li>Slices can be scaled independently by extracting them into microservices. There is a clear path to it - events to be moved to an external message broker, data to be moved to a separate storage, slice public interface to become an API callable over the network.</li>
 </ul>
-<h2 id="are-we-done-with-the-architecture">Are We Done With the Architecture?</h2>
-<p>Unfortunately, the answer is no. Generally speaking, architecture is never done when the software is still under development. I see Vertical Slices as something to start with, not the final thing. It requires attention to the code while it evolves. It means continuous refactoring and restructuring while getting more knowledge for the problem being solved.</p>
-<p>These are some cases that can occur:</p>
-<ul>
-<li><p>Two features can depend on each other with circular dependency. Probably this comes from wrongly defined feature boundary and they should be merged in one feature.</p>
-</li>
-<li><p>Multiple features depend on shared service. It is worth revisiting the design and review feature boundaries.</p>
-</li>
-<li><p>Code duplication in multiple features. Investigate whether it is really a code duplication or just a similar code in a different context. If it is really a duplication then it probably should be extracted.</p>
-</li>
-<li><p>Low cohesion within a feature. Probably the feature should be split into separate features.</p>
-</li>
-<li><p>Discover cohesion on the domain level. It possible to find out that the domain itself can be split into parts - a group of features may use given domain entities and a different group can use other entities with little to no crossing points.</p>
-</li>
-</ul>
-<p>As the requirements change over time there are multiple directions to go. It may be appropriate to start extracting features into <a href="https://en.wikipedia.org/wiki/Microservices">Microservices</a>. The feature's public interface can become an API call. Events feature produces or consumes can be put on an external message queue.</p>
-<p>If it makes sense there is nothing wrong to continue with a monolithic application. Then you can go on with <a href="https://www.kamilgrzybek.com/design/modular-monolith-primer/">Modular Monolith</a>.</p>
+<p>Additionally, using Vertical slices drove me to frequently analyze, revise and refine my domain model and its interactions. Paying attention to the domain cohesion within a slice can result in the merging or splitting of slices. It is all about finding the correct boundaries.</p>
 <h2 id="conclusion">Conclusion</h2>
-<p>Layered Architecture solves a certain class of problems perfectly. But not every project should use it from the start. There is no single architecture that will fit every use case. A project may evolve to layers but should be also flexible enough to be able to accommodate different approaches. Vertical Slices is one possible way to start.</p>
+<p>I find using Vertical Slices quite appealing. I was able to use an iterative approach, gaining and using knowledge along the way, pairing it with frequent refactoring and adjusting the boundaries of the slices. It resulted in a natural grouping of functionality making the whole solution more understandable and aligned with the business problems.</p>
 
 
 <div id="disqus_thread"></div>
 <script type="text/javascript">
     /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
     var disqus_shortname = 'pmarinov';
-    var disqus_identifier = '2020-05-25-layers-and-features';
-    var disqus_title = 'Layers and Features';
-    var disqus_url = 'https://pmarinov.xyz/posts/2020-05-25-layers-and-features';
+    var disqus_identifier = '2021-08-01-practical-vertical-slices';
+    var disqus_title = 'Practical Vertical Slices';
+    var disqus_url = 'https://pmarinov.xyz/posts/2021-08-01-practical-vertical-slices';
 
     /* * * DON'T EDIT BELOW THIS LINE * * */
     (function() {
