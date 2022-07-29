@@ -5,7 +5,7 @@
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 
-        <title>Petar Marinov - .NET</title>
+        <title>Petar Marinov - SQL Parameter Padding</title>
         <meta name="description" content="/dev/shared" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0">        
 
@@ -28,9 +28,9 @@
         <meta name="msapplication-tooltip" content="Petar Marinov" />
         <meta name="msapplication-starturl" content="/" />
 
-        <meta property="og:title" content="Petar Marinov - .NET" />
+        <meta property="og:title" content="Petar Marinov - SQL Parameter Padding" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://pmarinov.xyz/tags/NET" />
+        <meta property="og:url" content="https://pmarinov.xyz/posts/2022-07-29-sql-parameter-padding" />
         <!-- TODO: More social graph meta tags -->
 
         
@@ -72,9 +72,17 @@
                         <div class="container">
                                 <div class="row">
                                         <div class="col-md-12">
-<div class="site-heading">
-    <h1>.NET</h1>
-</div>                                            </div>
+
+    
+<div class="post-heading">
+    <h1>SQL Parameter Padding</h1>
+    <div class="meta">        
+Published on 29 July 2022<br>    </div>
+        <div class="tags">
+                    <a role="button" href="/tags/SQL" class="btn btn-default btn-xs">SQL</a>
+        </div>     
+</div>
+                                        </div>
                                 </div>
                         </div>
                 </header>
@@ -83,44 +91,77 @@
                 <div class="container">
                         <div class="row">
                                 <div id="content" class="col-md-12">
-                                        <div class="container-sm-height">
-    <div class="row row-sm-height">
-        <div class="col-sm-8 right-border col-sm-height">
-            
-        <div class="post-list">
-            <a href="/posts/2021-04-11-stateless-web-servers">
-                <h3 class="post-title">Stateless Web Servers</h3>
-            </a>
-            <p class="post-meta">Posted on 11 April 2021</p>      
-        </div>   
+                                        
+
+<p>An interesting approach for SQL query optimization reducing the number of generated and cached query execution plans.</p>
+<h2 id="background">Background</h2>
+<p>Let's look at these two SQL queries:</p>
+<pre><code class="language-sql">select x from y where z in (1, 2, 3)
+select x from y where z in (2, 3, 4)
+</code></pre>
+<p>The database query engine will create query plans for each one and cache them. This is because the queries are different. No matter that they may use the same query plan, they are different as much as the database engine is concerned. To reuse a cached query execution plan the query must literally match a previously executed SQL statement with a cached plan, character per character.</p>
+<h2 id="parametrization">Parametrization</h2>
+<p>The way to deal with this is to parametrize the queries</p>
+<pre><code class="language-sql">&#64;p1 = 1, &#64;p2 = 2, &#64;p3 = 3
+select x from y where z in (&#64;p1, &#64;p2, &#64;p3)
+
+&#64;p1 = 2, &#64;p2 = 3, &#64;p3 = 4
+select x from y where z in (&#64;p1, &#64;p2, &#64;p3)
+</code></pre>
+<p>Now both queries will reuse the same query execution plan.</p>
+<p>But the use of <code>IN</code> keyword implies we don't know the exact number of values we will want to match. If we look at these queries - we will again have an execution plan generated for each one:</p>
+<pre><code class="language-sql">select x from y where z in (&#64;p1, &#64;p2, &#64;p3)
+select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4)
+select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4, &#64;p5)
+</code></pre>
+<h2 id="parameter-padding">Parameter Padding</h2>
+<p>A technique called &quot;parameter padding&quot; can reduce the query execution plans generated and cached. We need to define a set of numbers of parameters and construct queries so the number of their parameters aligns with the numbers in the set. When a query has the exact number of parameters matching a value in the set then we are ok. Otherwise, we choose the minimum number in the set higher than the number of parameters we need to pass. For the surplus parameters we &quot;pad&quot; them by repeating one of the parameter values.</p>
+<p>Let's apply this to the last example. Let us choose our set of parameter numbers to be 4, 8, 16, etc.</p>
+<pre><code class="language-sql">&#64;p1 = 1, &#64;p2 = 2, &#64;p3 = 3, &#64;p4 = 3
+select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4) &lt;-- &quot;pad&quot; &#64;p4 giving it the same value as &#64;p3
+
+&#64;p1 = 5, &#64;p2 = 6 &#64;p3 = 7, &#64;p4 = 8
+select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4)
+
+&#64;p1 = 5, &#64;p2 = 6 &#64;p3 = 7, &#64;p4 = 8, &#64;p5 = 9, &#64;p6 = 9 &#64;p7 = 9, &#64;p8 = 9
+select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4, &#64;p5, &#64;p6, &#64;p7, &#64;p8) &lt;-- again &quot;pad&quot; last 3 parameters
+</code></pre>
+<p>Now the first two queries will reuse the same execution plan. We made them the same by adding parameter to the first one and repeating the 3rd one's value. We did the same &quot;padding&quot; for the third query, repeating the last value tree additional times to bring the number of parameters to 8.</p>
+<p>In fact, all such queries having up to 4 parameters will use the same plan, all having up to 8 will use the same plan, and so on. We effectively managed to reduce the number of generated and cached query execution plans from the maximum possible 8 to a maximum of 2 in the given example.</p>
+<p>Selecting the set of numbers for parameters will depend on concrete query patterns. They may form uniform or non-uniform intervals. There is no &quot;one to fit them all&quot; and we'll need to figure out what works best on a per-case basis.</p>
+<p>Note that for this to work:</p>
+<ul>
+<li>the database we use generates and caches query execution plans,</li>
+<li>for a given query we need to use the same set of parameter numbers.</li>
+</ul>
+<h2 id="conclusion">Conclusion</h2>
+<p>Parameter padding is a way to optimize queries using the <code>IN</code> SQL keyword when the parameter number is varying. We do this by reducing the number of generated and cached execution plans. As for everything related to performance improvements - don't take it as a fact, always measure!</p>
 
 
-            <nav>
-                <ul class="pager">
-                    <li class="previous">                
-                    </li>
-                    <li class="next">
-                    </li>
-                </ul>
-            </nav>
-            <hr class="visible-xs-block" />
-        </div>
-		
-        <div class="col-sm-4 col-sm-height">
-                <a role="button" href="/tags/General" class="btn btn-default btn-xs">General (5)</a>
-                <a role="button" href="/tags/Vertical-Slices" class="btn btn-default btn-xs">Vertical Slices (2)</a>
-                <a role="button" href="/tags/NET-Core" class="btn btn-default btn-xs">.NET Core (2)</a>
-                <a role="button" href="/tags/SQL" class="btn btn-default btn-xs">SQL (2)</a>
-                <a role="button" href="/tags/NET" class="btn btn-primary btn-xs">.NET (1)</a>
-                <a role="button" href="/tags/Redis" class="btn btn-default btn-xs">Redis (1)</a>
-                <a role="button" href="/tags/SignalR" class="btn btn-default btn-xs">SignalR (1)</a>
-                <a role="button" href="/tags/PowerShell" class="btn btn-default btn-xs">PowerShell (1)</a>
-                <a role="button" href="/tags/PostgreSQL" class="btn btn-default btn-xs">PostgreSQL (1)</a>
-                <a role="button" href="/tags/EF" class="btn btn-default btn-xs">EF (1)</a>
-                <a role="button" href="/tags/SMO" class="btn btn-default btn-xs">SMO (1)</a>
-        </div>
-    </div>
-</div>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'pmarinov';
+    var disqus_identifier = '2022-07-29-sql-parameter-padding';
+    var disqus_title = 'SQL Parameter Padding';
+    var disqus_url = 'https://pmarinov.xyz/posts/2022-07-29-sql-parameter-padding';
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+    
+    (function () {
+        var s = document.createElement('script'); s.async = true;
+        s.type = 'text/javascript';
+        s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+        (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+    }());
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
                                 </div>
                         </div>
                 </div>

@@ -5,8 +5,59 @@
 		<link>https://pmarinov.xyz/</link>
 		<description>/dev/shared</description>
 		<copyright>2022</copyright>
-		<pubDate>Tue, 26 Apr 2022 18:21:50 GMT</pubDate>
-		<lastBuildDate>Tue, 26 Apr 2022 18:21:50 GMT</lastBuildDate>
+		<pubDate>Fri, 29 Jul 2022 10:52:15 GMT</pubDate>
+		<lastBuildDate>Fri, 29 Jul 2022 10:52:15 GMT</lastBuildDate>
+		<item>
+			<title>SQL Parameter Padding</title>
+			<link>https://pmarinov.xyz/posts/2022-07-29-sql-parameter-padding</link>
+			<description>&lt;p&gt;An interesting approach for SQL query optimization reducing the number of generated and cached query execution plans.&lt;/p&gt;</description>
+			<guid>https://pmarinov.xyz/posts/2022-07-29-sql-parameter-padding</guid>
+			<pubDate>Fri, 29 Jul 2022 00:00:00 GMT</pubDate>
+			<content:encoded>&lt;p&gt;An interesting approach for SQL query optimization reducing the number of generated and cached query execution plans.&lt;/p&gt;
+&lt;h2 id="background"&gt;Background&lt;/h2&gt;
+&lt;p&gt;Let's look at these two SQL queries:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-sql"&gt;select x from y where z in (1, 2, 3)
+select x from y where z in (2, 3, 4)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The database query engine will create query plans for each one and cache them. This is because the queries are different. No matter that they may use the same query plan, they are different as much as the database engine is concerned. To reuse a cached query execution plan the query must literally match a previously executed SQL statement with a cached plan, character per character.&lt;/p&gt;
+&lt;h2 id="parametrization"&gt;Parametrization&lt;/h2&gt;
+&lt;p&gt;The way to deal with this is to parametrize the queries&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-sql"&gt;&amp;#64;p1 = 1, &amp;#64;p2 = 2, &amp;#64;p3 = 3
+select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3)
+
+&amp;#64;p1 = 2, &amp;#64;p2 = 3, &amp;#64;p3 = 4
+select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now both queries will reuse the same query execution plan.&lt;/p&gt;
+&lt;p&gt;But the use of &lt;code&gt;IN&lt;/code&gt; keyword implies we don't know the exact number of values we will want to match. If we look at these queries - we will again have an execution plan generated for each one:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-sql"&gt;select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3)
+select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3, &amp;#64;p4)
+select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3, &amp;#64;p4, &amp;#64;p5)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id="parameter-padding"&gt;Parameter Padding&lt;/h2&gt;
+&lt;p&gt;A technique called &amp;quot;parameter padding&amp;quot; can reduce the query execution plans generated and cached. We need to define a set of numbers of parameters and construct queries so the number of their parameters aligns with the numbers in the set. When a query has the exact number of parameters matching a value in the set then we are ok. Otherwise, we choose the minimum number in the set higher than the number of parameters we need to pass. For the surplus parameters we &amp;quot;pad&amp;quot; them by repeating one of the parameter values.&lt;/p&gt;
+&lt;p&gt;Let's apply this to the last example. Let us choose our set of parameter numbers to be 4, 8, 16, etc.&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-sql"&gt;&amp;#64;p1 = 1, &amp;#64;p2 = 2, &amp;#64;p3 = 3, &amp;#64;p4 = 3
+select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3, &amp;#64;p4) &amp;lt;-- &amp;quot;pad&amp;quot; &amp;#64;p4 giving it the same value as &amp;#64;p3
+
+&amp;#64;p1 = 5, &amp;#64;p2 = 6 &amp;#64;p3 = 7, &amp;#64;p4 = 8
+select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3, &amp;#64;p4)
+
+&amp;#64;p1 = 5, &amp;#64;p2 = 6 &amp;#64;p3 = 7, &amp;#64;p4 = 8, &amp;#64;p5 = 9, &amp;#64;p6 = 9 &amp;#64;p7 = 9, &amp;#64;p8 = 9
+select x from y where z in (&amp;#64;p1, &amp;#64;p2, &amp;#64;p3, &amp;#64;p4, &amp;#64;p5, &amp;#64;p6, &amp;#64;p7, &amp;#64;p8) &amp;lt;-- again &amp;quot;pad&amp;quot; last 3 parameters
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now the first two queries will reuse the same execution plan. We made them the same by adding parameter to the first one and repeating the 3rd one's value. We did the same &amp;quot;padding&amp;quot; for the third query, repeating the last value tree additional times to bring the number of parameters to 8.&lt;/p&gt;
+&lt;p&gt;In fact, all such queries having up to 4 parameters will use the same plan, all having up to 8 will use the same plan, and so on. We effectively managed to reduce the number of generated and cached query execution plans from the maximum possible 8 to a maximum of 2 in the given example.&lt;/p&gt;
+&lt;p&gt;Selecting the set of numbers for parameters will depend on concrete query patterns. They may form uniform or non-uniform intervals. There is no &amp;quot;one to fit them all&amp;quot; and we'll need to figure out what works best on a per-case basis.&lt;/p&gt;
+&lt;p&gt;Note that for this to work:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;the database we use generates and caches query execution plans,&lt;/li&gt;
+&lt;li&gt;for a given query we need to use the same set of parameter numbers.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Parameter padding is a way to optimize queries using the &lt;code&gt;IN&lt;/code&gt; SQL keyword when the parameter number is varying. We do this by reducing the number of generated and cached execution plans. As for everything related to performance improvements - don't take it as a fact, always measure!&lt;/p&gt;
+</content:encoded>
+		</item>
 		<item>
 			<title>Domain and Application Services</title>
 			<link>https://pmarinov.xyz/posts/2022-04-25-domain-and-application-services</link>
