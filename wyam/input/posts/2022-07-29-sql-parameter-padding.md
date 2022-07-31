@@ -42,7 +42,7 @@ select x from y where z in (@p1, @p2, @p3, @p4, @p5)
 
 A technique called "parameter padding" can reduce the query execution plans generated and cached. We need to define a set of numbers of parameters and construct queries so the number of their parameters aligns with the numbers in the set. When a query has the exact number of parameters matching a value in the set then we are ok. Otherwise, we choose the minimum number in the set higher than the number of parameters we need to pass. For the surplus parameters we "pad" them by repeating one of the parameter values.  
 
-Let's apply this to the last example. Let us choose our set of parameter numbers to be 4, 8, 16, etc.
+Let's apply this to the last example. Let us choose our set of parameter numbers to be 4, 8, 12, etc.
 
 ```sql
 @p1 = 1, @p2 = 2, @p3 = 3, @p4 = 3
@@ -55,9 +55,9 @@ select x from y where z in (@p1, @p2, @p3, @p4)
 select x from y where z in (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8) <-- again "pad" last 3 parameters
 ```  
 
-Now the first two queries will reuse the same execution plan. We made them the same by adding parameter to the first one and repeating the 3rd one's value. We did the same "padding" for the third query, repeating the last value tree additional times to bring the number of parameters to 8.  
+Now the first two queries will reuse the same execution plan. We made them the same by adding parameter to the first one and repeating the 3rd one's value. We did the same "padding" for the third query, repeating the last value three additional times to bring the number of parameters to 8.  
 
-In fact, all such queries having up to 4 parameters will use the same plan, all having up to 8 will use the same plan, and so on. We effectively managed to reduce the number of generated and cached query execution plans from the maximum possible 8 to a maximum of 2 in the given example.  
+In fact, all such queries having up to 4 parameters will reuse the same plan, all having 5 to 8 will reuse the same plan, and so on. We effectively reduced the number of generated and cached query execution plans from the maximum possible 8 to a maximum of 2 for the given example.  
   
 Selecting the set of numbers for parameters will depend on concrete query patterns. They may form uniform or non-uniform intervals. There is no "one to fit them all" and we'll need to figure out what works best on a per-case basis.  
 
