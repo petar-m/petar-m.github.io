@@ -116,7 +116,7 @@ select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4, &#64;p5)
 </code></pre>
 <h2 id="parameter-padding">Parameter Padding</h2>
 <p>A technique called &quot;parameter padding&quot; can reduce the query execution plans generated and cached. We need to define a set of numbers of parameters and construct queries so the number of their parameters aligns with the numbers in the set. When a query has the exact number of parameters matching a value in the set then we are ok. Otherwise, we choose the minimum number in the set higher than the number of parameters we need to pass. For the surplus parameters we &quot;pad&quot; them by repeating one of the parameter values.</p>
-<p>Let's apply this to the last example. Let us choose our set of parameter numbers to be 4, 8, 16, etc.</p>
+<p>Let's apply this to the last example. Let us choose our set of parameter numbers to be 4, 8, 12, etc.</p>
 <pre><code class="language-sql">&#64;p1 = 1, &#64;p2 = 2, &#64;p3 = 3, &#64;p4 = 3
 select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4) &lt;-- &quot;pad&quot; &#64;p4 giving it the same value as &#64;p3
 
@@ -126,8 +126,8 @@ select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4)
 &#64;p1 = 5, &#64;p2 = 6 &#64;p3 = 7, &#64;p4 = 8, &#64;p5 = 9, &#64;p6 = 9 &#64;p7 = 9, &#64;p8 = 9
 select x from y where z in (&#64;p1, &#64;p2, &#64;p3, &#64;p4, &#64;p5, &#64;p6, &#64;p7, &#64;p8) &lt;-- again &quot;pad&quot; last 3 parameters
 </code></pre>
-<p>Now the first two queries will reuse the same execution plan. We made them the same by adding parameter to the first one and repeating the 3rd one's value. We did the same &quot;padding&quot; for the third query, repeating the last value tree additional times to bring the number of parameters to 8.</p>
-<p>In fact, all such queries having up to 4 parameters will use the same plan, all having up to 8 will use the same plan, and so on. We effectively managed to reduce the number of generated and cached query execution plans from the maximum possible 8 to a maximum of 2 in the given example.</p>
+<p>Now the first two queries will reuse the same execution plan. We made them the same by adding parameter to the first one and repeating the 3rd one's value. We did the same &quot;padding&quot; for the third query, repeating the last value three additional times to bring the number of parameters to 8.</p>
+<p>In fact, all such queries having up to 4 parameters will reuse the same plan, all having 5 to 8 will reuse the same plan, and so on. We effectively reduced the number of generated and cached query execution plans from the maximum possible 8 to a maximum of 2 for the given example.</p>
 <p>Selecting the set of numbers for parameters will depend on concrete query patterns. They may form uniform or non-uniform intervals. There is no &quot;one to fit them all&quot; and we'll need to figure out what works best on a per-case basis.</p>
 <p>Note that for this to work:</p>
 <ul>
