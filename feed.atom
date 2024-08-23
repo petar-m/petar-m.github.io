@@ -3,9 +3,46 @@
 	<id>https://pmarinov.xyz/</id>
 	<title>Petar Marinov</title>
 	<link rel="self" href="https://pmarinov.xyz/" />
-	<rights>2022</rights>
-	<updated>2022-07-31T09:44:22Z</updated>
+	<rights>2024</rights>
+	<updated>2024-08-23T09:25:38Z</updated>
 	<subtitle>/dev/shared</subtitle>
+	<entry>
+		<id>https://pmarinov.xyz/posts/2024-08-20-module-dependencies-within-a-modular-monolith</id>
+		<title>Module Dependencies Within a Modular Monolith</title>
+		<link href="https://pmarinov.xyz/posts/2024-08-20-module-dependencies-within-a-modular-monolith" />
+		<updated>2024-08-20T00:00:00Z</updated>
+		<content>&lt;h2 id="background"&gt;Background&lt;/h2&gt;
+&lt;p&gt;Modules within a modular monolith sometimes depend on other modules. Should such dependencies be made explicit in module public interfaces or can they be considered an implementation detail?&lt;/p&gt;
+&lt;p&gt;For clarity, here is my understanding of what a module is: a grouping of logically related classes addressing specific business task or closely related set of tasks. Its implementations are not visible to other modules. A module can expose one or more public interfaces defining operations available for other modules. A module can call (and depend on) another module only through its public interface.&lt;/p&gt;
+&lt;h2 id="the-issue"&gt;The issue&lt;/h2&gt;
+&lt;p&gt;Let's take for example modules A and B, with an operation from B having to call an operation from A.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/module-dependencies-modular-monolith/module_dependencies_1.png" class="img-fluid" alt="" /&gt;&lt;/p&gt;
+&lt;p&gt;Usually, dependency injection is used to wire up abstractions and implementations. Let's assume the most widespread, constructor injection, is used. This means implementation in B will take a dependency on the interface from A.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/module-dependencies-modular-monolith/module_dependencies_2.png" class="img-fluid" alt="" /&gt;&lt;/p&gt;
+&lt;p&gt;This is not wrong. The dependency can be viewed as implementation detail of module B. However to understand what exactly depends on A, we'll have to dig into B's internals.&lt;/p&gt;
+&lt;p&gt;If we look the other way around - we have the code and we want to figure out dependencies. We go through public interfaces and draw a diagram. The dependency is likely to be missed. This is highly probable if we are not familiar with the code base or the domain.&lt;/p&gt;
+&lt;p&gt;This gap between the conceptual model and the implementation can be confusing. It may create a discrepancy between documentation and implementation. It can be closed by making dependencies &amp;quot;explicit&amp;quot;. In other words - make them a part of the module's public interface.&lt;/p&gt;
+&lt;p&gt;Two ways come to mind - switch to method dependency injection or use the adapter design pattern.&lt;/p&gt;
+&lt;h2 id="method-dependency-injection"&gt;Method Dependency Injection&lt;/h2&gt;
+&lt;p&gt;Instead of constructor injection, dependency can be passed as a method parameter. Assuming the method is part of B's public interface, the dependency becomes explicit.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/module-dependencies-modular-monolith/module_dependencies_3.png" class="img-fluid" alt="" /&gt;&lt;/p&gt;
+&lt;p&gt;This doesn't change B's implementation much.&lt;/p&gt;
+&lt;p&gt;One drawback is that the responsibility for obtaining the dependency is shifted to the caller. Imagine module C calling B through its interface depending on A. C will have to depend on A without doing anything with A's dependency besides passing it to B. This may be ok in some cases - for example, controller in Backend for Frontend or API Gateway implementation.&lt;/p&gt;
+&lt;p&gt;There is at least one case where this approach won't work. If B consumes messages from a message broker and has to call A as part of message handling logic. The handler won't be part of B's public interface.&lt;/p&gt;
+&lt;h2 id="adapter-design-pattern"&gt;Adapter Design Pattern&lt;/h2&gt;
+&lt;p&gt;Another solution is to define a similar abstraction in module B and introduce an adapter implementation. B's implementations depend only on B's abstractions. The adapter is injected in B's implementation using constructor injection.&lt;/p&gt;
+&lt;p&gt;&lt;img src="images/module-dependencies-modular-monolith/module_dependencies_4.png" class="img-fluid" alt="" /&gt;&lt;/p&gt;
+&lt;p&gt;The trick is to keep the adapter implementation within the public part of module B.&lt;/p&gt;
+&lt;p&gt;This is more involved to implement since A's interface and input/output data structures should have similar ones defined in B.&lt;/p&gt;
+&lt;p&gt;As an upside - B's interface and input/output data structures representing A's abstraction can be named to reflect better B's purpose. The adapter can &amp;quot;hide&amp;quot; some operations if they are not needed by B's implementation. Changes to A's public interface can be &amp;quot;absorbed&amp;quot; by the adapter, leaving B's dependent implementation unchanged.&lt;/p&gt;
+&lt;p&gt;As a downside - the adapter implementation should reside next to B's abstractions. Otherwise, the dependency will again become &amp;quot;hidden&amp;quot; in B's implementation. This should not be much of a problem - the adapter task is to map data structures, forward the call to A, and map and return the result. It should not contain any business logic.&lt;/p&gt;
+&lt;p&gt;The adapter being public can lead to possible misuse. Module C can depend on B only to call A through B's adapter, instead of directly depending on A. It's a trade-off between explicit dependency and possible incorrect usage. This kind of misuse can be spotted during review but requires extra attention.&lt;/p&gt;
+&lt;p&gt;This approach resolves the problem with private message handlers. The handler can depend on the adapter and use external operations without direct dependency on another module.&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;As always, a pragmatic approach would be best. It is not wrong to consider module dependencies as an implementation detail. Making dependencies explicit requires additional work and comes with a cost. Nevertheless, it is worth the tradeoff because it makes it easier to reason about and analyze module dependencies.&lt;/p&gt;
+</content>
+		<summary>&lt;p&gt;Modules within a modular monolith sometimes depend on other modules. Should such dependencies be made explicit in module public interfaces or can they be considered an implementation detail?&lt;/p&gt;</summary>
+	</entry>
 	<entry>
 		<id>https://pmarinov.xyz/posts/2022-07-29-sql-parameter-padding</id>
 		<title>SQL Parameter Padding</title>
@@ -436,9 +473,9 @@ Appears that this information can be passed as generic type argument:&lt;/p&gt;
 		<summary>&lt;p&gt;Feature Switch and Branch by Abstraction are techniques usually mentioned in the context of Trunk Based Development. Nevertheless, when used together, they become a powerful tool for changing existing code.&lt;/p&gt;</summary>
 	</entry>
 	<entry>
-		<id>https://pmarinov.xyz/posts/2020-05-25-layers-and-features</id>
+		<id>https://pmarinov.xyz/posts/layers-and-features</id>
 		<title>Layers and Features</title>
-		<link href="https://pmarinov.xyz/posts/2020-05-25-layers-and-features" />
+		<link href="https://pmarinov.xyz/posts/layers-and-features" />
 		<updated>2020-05-25T00:00:00Z</updated>
 		<content>&lt;h2 id="background"&gt;Background&lt;/h2&gt;
 &lt;p&gt;Layered Architecture is a well known and proven approach when developing software. But should it always be the default choice?&lt;/p&gt;
@@ -501,10 +538,73 @@ Appears that this information can be passed as generic type argument:&lt;/p&gt;
 		<summary>&lt;p&gt;Layered Architecture is a well known and proven approach when developing software. But should it always be the default choice?&lt;/p&gt;</summary>
 	</entry>
 	<entry>
+		<id>https://pmarinov.xyz/posts/breaking-change-in-entity-framework-core-provider-for-postgresql-3</id>
+		<title>Breaking change in Entity Framework Core provider for PostgreSQL 3.0</title>
+		<link href="https://pmarinov.xyz/posts/breaking-change-in-entity-framework-core-provider-for-postgresql-3" />
+		<updated>2020-03-22T00:00:00Z</updated>
+		<content>&lt;!-- # Breaking change in Entity Framework Core provider for PostgreSQL 3.0 --&gt;
+&lt;p&gt;Beware when upgrading form &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 2.2&lt;/code&gt; and running &lt;code&gt;PostgreSQL 9.6&lt;/code&gt; or earlier.&lt;/p&gt;
+&lt;h2 id="background"&gt;Background&lt;/h2&gt;
+&lt;p&gt;Recently I wanted to add &lt;a href="https://docs.microsoft.com/en-us/aspnet/core/security/authentication/identity?view=aspnetcore-3.1&amp;amp;tabs=visual-studio"&gt;ASP.NET Core Identity&lt;/a&gt; to an application using PostgreSQL as a data storage. Since I prefer to manage database schema and migrations separately from the application (currently using &lt;a href="https://dbup.readthedocs.io/en/latest/"&gt;DbUp&lt;/a&gt;) I decided to use Entity Framework Core migrations to generate the SQL script for it.&lt;/p&gt;
+&lt;h2 id="generating-the-migration-sql-script"&gt;Generating the migration SQL script&lt;/h2&gt;
+&lt;p&gt;Using the Entity Framework Core tools 3.x is straight-froward.
+(Given that you have added the necessary dependencies and defined your application's &lt;code&gt;IdentityDbContext&lt;/code&gt;)&lt;/p&gt;
+&lt;p&gt;First make sure it is installed:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-powershell"&gt;dotnet tool install --global dotnet-ef
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Initialize the migrations in the project where your DbContext is:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-powershell"&gt;dotnet ef migrations add init
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Then generate the SQL script for the DbContext (called ApplicationDbContext in my case):&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-powershell"&gt;dotnet ef migrations script -c ApplicationDbContext -o migration_script.sql
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Removed the SQL related to &lt;code&gt;__EFMigrationsHistory&lt;/code&gt; and my migration script was ready.
+Then removed the migrations folder from my project and was ready to go.&lt;/p&gt;
+&lt;p&gt;Ran the SQL script and... it failed!&lt;/p&gt;
+&lt;h2 id="the-issue"&gt;The issue&lt;/h2&gt;
+&lt;p&gt;I was quite surprized to see that the error was in the SQL:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;ERROR: syntax error at or near &amp;quot;GENERATED&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And the offending statement was:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-sql"&gt;CREATE TABLE &amp;quot;AspNetRoleClaims&amp;quot; (
+    &amp;quot;Id&amp;quot; integer NOT NULL GENERATED BY DEFAULT AS IDENTITY,
+...    
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;which on further research made perfect sense because this is a new syntax  &lt;code&gt;GENERATED AS IDENTITY&lt;/code&gt; for creating auto-incremented column available in PostgreSQL 10 and I was running version 9.6.&lt;/p&gt;
+&lt;p&gt;I was using &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 3.1.1&lt;/code&gt; and going through it I found a documented breaking change in &lt;code&gt;3.0.0&lt;/code&gt;:&lt;/p&gt;
+&lt;blockquote class="blockquote"&gt;
+&lt;p&gt;&lt;em&gt;The default value generation strategy has changed from the older SERIAL columns to the newer IDENTITY columns, introduced in PostgreSQL 10.&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;You can look for details here: &lt;a href="https://www.npgsql.org/efcore/release-notes/3.0.html"&gt;3.0 Release Notes&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Fortunately the fix was easy - just had to specify the PostgreSQL version I was targeting:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-csharp"&gt;public class ApplicationDbContext : IdentityDbContext
+{
+    public ApplicationDbContext(DbContextOptions options) : base(options)
+    {
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseNpgsql(&amp;quot;DefaultConnection&amp;quot;, o =&amp;gt; o.SetPostgresVersion(9, 6));
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;After re-generating the migrations the older &lt;code&gt;SERIAL&lt;/code&gt; statement was used:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-sql"&gt;CREATE TABLE &amp;quot;AspNetRoleClaims&amp;quot; (
+    &amp;quot;Id&amp;quot; serial NOT NULL,
+...    
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;and everything went fine.&lt;/p&gt;
+&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;PostgreSQL 10 introduced &lt;code&gt;GENERATED AS IDENTITY&lt;/code&gt; syntax aiming to replace &lt;code&gt;SERIAL&lt;/code&gt; for automatic assignment of unique value to a column. &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 3.0.0&lt;/code&gt; takes advantage of it and uses it as a default when generating SQL migrations. Upgrading dependencies caught me off guard this time but the breaking change was well documented and my problem easily fixed.&lt;/p&gt;
+</content>
+		<summary>&lt;p&gt;Beware when upgrading form &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 2.2&lt;/code&gt; and running &lt;code&gt;PostgreSQL 9.6&lt;/code&gt; or earlier.&lt;/p&gt;</summary>
+	</entry>
+	<entry>
 		<id>https://pmarinov.xyz/posts/2020-05-03-structuring-data-access</id>
 		<title>Structuring Data Access</title>
 		<link href="https://pmarinov.xyz/posts/2020-05-03-structuring-data-access" />
-		<updated>2020-05-03T00:00:00Z</updated>
+		<updated>2020-03-05T00:00:00Z</updated>
 		<content>&lt;!-- # Structuring Data Access --&gt;
 &lt;h2 id="background"&gt;Background&lt;/h2&gt;
 &lt;p&gt;Best practices in software development dictate that data storage and retrieval should be treated as an implementation detail. In practice it is easier said than done though - there are endless debates about how much abstraction is needed, whether the Repository Pattern is still relevant and if yes how to implement it, are ORMs good or evil, Micro ORMs and so on.&lt;/p&gt;
@@ -574,72 +674,9 @@ batch processing, caching, performance, transactions, compensating actions, conc
 		<summary>&lt;p&gt;Best practices in software development dictate that data storage and retrieval should be treated as an implementation detail. In practice it is easier said than done though - there are endless debates about how much abstraction is needed, whether the Repository Pattern is still relevant and if yes how to implement it, are ORMs good or evil, Micro ORMs and so on.&lt;/p&gt;</summary>
 	</entry>
 	<entry>
-		<id>https://pmarinov.xyz/posts/2020-03-22-breaking-change-in-entity-framework-core-provider-for-postgresql-3</id>
-		<title>Breaking change in Entity Framework Core provider for PostgreSQL 3.0</title>
-		<link href="https://pmarinov.xyz/posts/2020-03-22-breaking-change-in-entity-framework-core-provider-for-postgresql-3" />
-		<updated>2020-03-22T00:00:00Z</updated>
-		<content>&lt;!-- # Breaking change in Entity Framework Core provider for PostgreSQL 3.0 --&gt;
-&lt;p&gt;Beware when upgrading form &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 2.2&lt;/code&gt; and running &lt;code&gt;PostgreSQL 9.6&lt;/code&gt; or earlier.&lt;/p&gt;
-&lt;h2 id="background"&gt;Background&lt;/h2&gt;
-&lt;p&gt;Recently I wanted to add &lt;a href="https://docs.microsoft.com/en-us/aspnet/core/security/authentication/identity?view=aspnetcore-3.1&amp;amp;tabs=visual-studio"&gt;ASP.NET Core Identity&lt;/a&gt; to an application using PostgreSQL as a data storage. Since I prefer to manage database schema and migrations separately from the application (currently using &lt;a href="https://dbup.readthedocs.io/en/latest/"&gt;DbUp&lt;/a&gt;) I decided to use Entity Framework Core migrations to generate the SQL script for it.&lt;/p&gt;
-&lt;h2 id="generating-the-migration-sql-script"&gt;Generating the migration SQL script&lt;/h2&gt;
-&lt;p&gt;Using the Entity Framework Core tools 3.x is straight-froward.
-(Given that you have added the necessary dependencies and defined your application's &lt;code&gt;IdentityDbContext&lt;/code&gt;)&lt;/p&gt;
-&lt;p&gt;First make sure it is installed:&lt;/p&gt;
-&lt;pre&gt;&lt;code class="language-powershell"&gt;dotnet tool install --global dotnet-ef
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Initialize the migrations in the project where your DbContext is:&lt;/p&gt;
-&lt;pre&gt;&lt;code class="language-powershell"&gt;dotnet ef migrations add init
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Then generate the SQL script for the DbContext (called ApplicationDbContext in my case):&lt;/p&gt;
-&lt;pre&gt;&lt;code class="language-powershell"&gt;dotnet ef migrations script -c ApplicationDbContext -o migration_script.sql
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Removed the SQL related to &lt;code&gt;__EFMigrationsHistory&lt;/code&gt; and my migration script was ready.
-Then removed the migrations folder from my project and was ready to go.&lt;/p&gt;
-&lt;p&gt;Ran the SQL script and... it failed!&lt;/p&gt;
-&lt;h2 id="the-issue"&gt;The issue&lt;/h2&gt;
-&lt;p&gt;I was quite surprized to see that the error was in the SQL:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;ERROR: syntax error at or near &amp;quot;GENERATED&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;And the offending statement was:&lt;/p&gt;
-&lt;pre&gt;&lt;code class="language-sql"&gt;CREATE TABLE &amp;quot;AspNetRoleClaims&amp;quot; (
-    &amp;quot;Id&amp;quot; integer NOT NULL GENERATED BY DEFAULT AS IDENTITY,
-...    
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;which on further research made perfect sense because this is a new syntax  &lt;code&gt;GENERATED AS IDENTITY&lt;/code&gt; for creating auto-incremented column available in PostgreSQL 10 and I was running version 9.6.&lt;/p&gt;
-&lt;p&gt;I was using &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 3.1.1&lt;/code&gt; and going through it I found a documented breaking change in &lt;code&gt;3.0.0&lt;/code&gt;:&lt;/p&gt;
-&lt;blockquote class="blockquote"&gt;
-&lt;p&gt;&lt;em&gt;The default value generation strategy has changed from the older SERIAL columns to the newer IDENTITY columns, introduced in PostgreSQL 10.&lt;/em&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;You can look for details here: &lt;a href="https://www.npgsql.org/efcore/release-notes/3.0.html"&gt;3.0 Release Notes&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;Fortunately the fix was easy - just had to specify the PostgreSQL version I was targeting:&lt;/p&gt;
-&lt;pre&gt;&lt;code class="language-csharp"&gt;public class ApplicationDbContext : IdentityDbContext
-{
-    public ApplicationDbContext(DbContextOptions options) : base(options)
-    {
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.UseNpgsql(&amp;quot;DefaultConnection&amp;quot;, o =&amp;gt; o.SetPostgresVersion(9, 6));
-    }
-}
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;After re-generating the migrations the older &lt;code&gt;SERIAL&lt;/code&gt; statement was used:&lt;/p&gt;
-&lt;pre&gt;&lt;code class="language-sql"&gt;CREATE TABLE &amp;quot;AspNetRoleClaims&amp;quot; (
-    &amp;quot;Id&amp;quot; serial NOT NULL,
-...    
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;and everything went fine.&lt;/p&gt;
-&lt;h2 id="conclusion"&gt;Conclusion&lt;/h2&gt;
-&lt;p&gt;PostgreSQL 10 introduced &lt;code&gt;GENERATED AS IDENTITY&lt;/code&gt; syntax aiming to replace &lt;code&gt;SERIAL&lt;/code&gt; for automatic assignment of unique value to a column. &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 3.0.0&lt;/code&gt; takes advantage of it and uses it as a default when generating SQL migrations. Upgrading dependencies caught me off guard this time but the breaking change was well documented and my problem easily fixed.&lt;/p&gt;
-</content>
-		<summary>&lt;p&gt;Beware when upgrading form &lt;code&gt;Npgsql.EntityFrameworkCore.PostgreSQL 2.2&lt;/code&gt; and running &lt;code&gt;PostgreSQL 9.6&lt;/code&gt; or earlier.&lt;/p&gt;</summary>
-	</entry>
-	<entry>
-		<id>https://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database</id>
+		<id>https://pmarinov.xyz/posts/deleting-large-amounts-of-data-from-ms-sql-server-database</id>
 		<title>Deleting large amounts of data from MS SQL Server database</title>
-		<link href="https://pmarinov.xyz/posts/2020-02-27-deleting-large-amounts-of-data-from-ms-sql-server-database" />
+		<link href="https://pmarinov.xyz/posts/deleting-large-amounts-of-data-from-ms-sql-server-database" />
 		<updated>2020-02-27T00:00:00Z</updated>
 		<content>&lt;!--- # Deleting large amounts of data from MS SQL Server database ---&gt;
 &lt;p&gt;Deleting a large number of rows (like millions of them) from a table has a downside of being slow and making a transaction log file to explode in terms of size. Here is an approach that worked for me to overcome these obstacles.&lt;/p&gt;
