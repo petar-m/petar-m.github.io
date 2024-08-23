@@ -1,4 +1,7 @@
-# Module Dependencies Within a Modular Monolith
+Title: Module Dependencies Within a Modular Monolith
+Published: 2024-08-20
+Tags: [General]
+---    
 
 ## Background  
 
